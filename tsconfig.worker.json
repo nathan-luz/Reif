@@ -16,5 +16,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["worker"]
+  "include": ["worker", "src/shared"]
 }
