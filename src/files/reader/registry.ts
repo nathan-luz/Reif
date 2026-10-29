@@ -6,4 +6,7 @@ import type { ReaderProps } from './types'
 export const READERS: Partial<Record<FileKind, ComponentType<ReaderProps>>> = {
   pdf: lazy(() => import('./PdfReader')),
   text: lazy(() => import('./TextReader')),
+  doc: lazy(() => import('./DocReader')),
+  epub: lazy(() => import('./DocReader')),
+  slides: lazy(() => import('./SlidesReader')),
 }

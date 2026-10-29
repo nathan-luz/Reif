@@ -25,4 +25,18 @@ function restartOnEnvChange(files: string[]): Plugin {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), cloudflare(), restartOnEnvChange(['.dev.vars', '.env.local'])],
+  // Libs carregadas sob demanda (import dinâmico): pré-otimizadas na inicialização para o
+  // dev server não recarregar a página na primeira vez que um formato é usado.
+  optimizeDeps: {
+    include: [
+      'pdfjs-dist',
+      'mammoth/mammoth.browser.js',
+      'jszip',
+      'marked',
+      'dompurify',
+      'highlight.js/lib/core',
+      '@mozilla/readability',
+      'xlsx',
+    ],
+  },
 })

@@ -12,6 +12,12 @@ export async function loadAnalyzer(kind: FileKind): Promise<Analyzer> {
       return (await import('./audio')).analyzeAudio
     case 'text':
       return (await import('./text')).analyzeText
+    case 'doc':
+      return (await import('./doc')).analyzeDoc
+    case 'epub':
+      return (await import('./epub')).analyzeEpub
+    case 'slides':
+      return (await import('./slides')).analyzeSlides
     default:
       return async (file, name) => ({ ...(await generic(file, name)), stats: KIND_LABEL[kind] })
   }

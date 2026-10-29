@@ -119,7 +119,14 @@ export async function importFiles(editor: Editor, files: File[], point?: VecLike
     x += size.w + GAP
     jobs.push(putBlob(fileId, file).then(() => analyze(editor, id, file)))
   }
-  if (ids.length) editor.select(...ids)
+  if (ids.length) {
+    editor.select(...ids)
+    // Importou vários e algum ficou fora da tela: enquadra todos (sem mudar o zoom à toa).
+    const bounds = editor.getSelectionPageBounds()
+    if (bounds && !editor.getViewportPageBounds().contains(bounds)) {
+      editor.zoomToSelection({ animation: { duration: 220 } })
+    }
+  }
   await Promise.all(jobs)
   if (ids.length) void warnIfStorageLow()
   return ids
