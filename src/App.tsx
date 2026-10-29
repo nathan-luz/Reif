@@ -2,6 +2,7 @@ import { Tldraw } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { components } from './canvas/components'
 import { ExternalContentBridge } from './canvas/ExternalContentBridge'
+import { overrides } from './canvas/overrides'
 import { PromptShortcut } from './canvas/PromptShortcut'
 import { customShapeUtils } from './shapes'
 
@@ -14,6 +15,7 @@ export default function App() {
         persistenceKey="reif-main"
         shapeUtils={customShapeUtils}
         components={components}
+        overrides={overrides}
         {...(licenseKey ? { licenseKey } : {})}
       >
         <ExternalContentBridge />
