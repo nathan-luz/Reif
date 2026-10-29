@@ -31,6 +31,9 @@ Rules:
 - To add a YouTube video use kind "youtube" with a precise search "query" (use the language most
   likely to return a good explanatory video). Never put video ids or URLs anywhere; the system searches.
   Videos are 480x270.
+- To add a picture use kind "image" with a precise search "query" (English usually returns more
+  results) and w/h for the slot (default 320x240). The user picks the actual image afterwards.
+  Never put image URLs anywhere.
 - Never invent ids. If the instruction cannot be done, return empty arrays and explain in "summary".`
 
 export function buildUserMessage({ prompt, subgraph }: TransformRequest): string {

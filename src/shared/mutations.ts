@@ -14,7 +14,7 @@ export const GEO_TYPES = [
 export const FILLS = ['none', 'semi', 'solid', 'pattern'] as const
 export const DASHES = ['draw', 'solid', 'dashed', 'dotted'] as const
 export const SIZES = ['s', 'm', 'l', 'xl'] as const
-export const NODE_KINDS = ['note', 'text', 'geo', 'line', 'draw', 'frame', 'youtube'] as const
+export const NODE_KINDS = ['note', 'text', 'geo', 'line', 'draw', 'frame', 'youtube', 'image'] as const
 
 export const ColorSchema = z.enum(COLORS)
 export type NodeKind = (typeof NODE_KINDS)[number]
@@ -33,13 +33,14 @@ export const CreateNodeSchema = z.object({
     .enum(NODE_KINDS)
     .describe(
       'note = post-it 200x200; text = texto solto; geo = forma geométrica com texto opcional; ' +
-        'line = polilinha (points); draw = traço à mão livre (points); frame = contêiner nomeado; youtube = vídeo 480x270',
+        'line = polilinha (points); draw = traço à mão livre (points); frame = contêiner nomeado; youtube = vídeo 480x270; ' +
+        'image = espaço para imagem buscada na internet (o usuário escolhe)',
     ),
   text: z.string().describe('Conteúdo/rótulo. Para frame, o nome. Pode ser vazio em geo/line/draw.'),
   x: z.number().describe('Canto superior esquerdo em coordenadas de página. Para line/draw, o primeiro ponto.'),
   y: z.number(),
-  w: z.number().optional().describe('geo/frame'),
-  h: z.number().optional().describe('geo/frame'),
+  w: z.number().optional().describe('geo/frame/image'),
+  h: z.number().optional().describe('geo/frame/image'),
   geo: z.enum(GEO_TYPES).optional().describe('Só para geo. Padrão rectangle.'),
   points: z
     .array(PointSchema)
@@ -50,7 +51,7 @@ export const CreateNodeSchema = z.object({
   dash: z.enum(DASHES).optional(),
   size: z.enum(SIZES).optional().describe('Espessura do traço / tamanho da fonte'),
   frame: z.string().optional().describe('ref de um frame criado neste plano para conter este nó'),
-  query: z.string().optional().describe('Só para youtube: termos de busca precisos para encontrar o vídeo.'),
+  query: z.string().optional().describe('youtube/image: termos de busca precisos para encontrar o vídeo ou a imagem.'),
 })
 export type CreateNode = z.infer<typeof CreateNodeSchema>
 

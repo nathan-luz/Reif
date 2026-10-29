@@ -53,9 +53,16 @@ function occupiedRects(editor: Editor): Rect[] {
     })
 }
 
+export interface ApplyResult {
+  created: TLShapeId[]
+  /** Slots de imagem criados, na ordem do plano (o picker abre no primeiro). */
+  imageSlots: TLShapeId[]
+}
+
 /** Aplica o plano numa única transação de histórico (1 Ctrl+Z desfaz tudo). */
-export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: SubgraphPayload): TLShapeId[] {
+export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: SubgraphPayload): ApplyResult {
   const created: TLShapeId[] = []
+  const imageSlots: TLShapeId[] = []
   editor.markHistoryStoppingPoint('reif:ai-transform')
 
   editor.run(() => {
@@ -87,6 +94,7 @@ export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: Subgraph
       editor.createShape(partial)
       refs.set(c.ref, id)
       if (c.kind === 'frame') frames.set(c.ref, { id, x: c.x + dx, y: c.y })
+      if (c.kind === 'image') imageSlots.push(id)
       if (!parent) created.push(id)
     }
 
@@ -101,5 +109,5 @@ export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: Subgraph
     if (created.length) editor.select(...created)
   })
 
-  return created
+  return { created, imageSlots }
 }

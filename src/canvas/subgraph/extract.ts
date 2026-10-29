@@ -16,6 +16,8 @@ const OMITTED_PROPS = new Set([
   'isPen',
   'scaleX',
   'scaleY',
+  'crop',
+  'playing',
 ])
 
 const isMeaningful = (v: unknown) => v !== '' && v !== null && v !== undefined

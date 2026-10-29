@@ -12,6 +12,8 @@ import { buildUserMessage, SYSTEM_PROMPT } from './prompt'
 import { createClaude } from './providers/claude'
 import { createGemini } from './providers/gemini'
 import { ProviderError, type JsonSchema, type LLMProvider } from './providers/types'
+import { proxyImage, trackUnsplashDownload } from './images/proxy'
+import { searchImages } from './images/search'
 import { resolvePlan } from './resolvers'
 import { fetchVideoTitle } from './resolvers/youtube'
 
@@ -21,6 +23,9 @@ type Env = {
   GEMINI_MODEL?: string
   CLAUDE_MODEL?: string
   YOUTUBE_API_KEY?: string
+  UNSPLASH_ACCESS_KEY?: string
+  PIXABAY_API_KEY?: string
+  PEXELS_API_KEY?: string
 }
 
 const PLAN_JSON_SCHEMA = z.toJSONSchema(LLMPlanSchema) as JsonSchema
@@ -73,6 +78,23 @@ app.get('/api/youtube/meta/:id', async (c) => {
   if (!title) return c.json({ error: 'não encontrado' }, 404)
   c.header('cache-control', 'public, max-age=86400')
   return c.json({ title })
+})
+
+app.get('/api/images/search', async (c) => {
+  const q = c.req.query('q')?.trim()
+  if (!q) return c.json({ error: 'q obrigatório' }, 400)
+  c.header('cache-control', 'private, max-age=300')
+  return c.json(await searchImages(q.slice(0, 200), c.env))
+})
+
+app.get('/api/images/proxy', (c) => proxyImage(c.req.query('url') ?? ''))
+
+app.post('/api/images/unsplash/track', async (c) => {
+  const body = await c.req.json<{ downloadLocation?: string }>().catch(() => ({}) as { downloadLocation?: string })
+  if (body.downloadLocation && c.env.UNSPLASH_ACCESS_KEY) {
+    c.executionCtx.waitUntil(trackUnsplashDownload(body.downloadLocation, c.env.UNSPLASH_ACCESS_KEY).catch(() => {}))
+  }
+  return c.body(null, 204)
 })
 
 export default app

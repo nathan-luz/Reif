@@ -13,6 +13,7 @@ import {
 } from 'tldraw'
 import type { Point, ResolvedCreateNode } from '../../shared/mutations'
 import { youtubeShapePartial } from '../../shapes/youtube/create'
+import { IMAGE_SLOT_DEFAULT_SIZE, IMAGE_SLOT_SHAPE, type ImageSlotShape } from '../../shapes/image-slot/types'
 import { YOUTUBE_DEFAULT_SIZE } from '../../shapes/youtube/types'
 import { unionRect, type Rect } from './placement'
 
@@ -34,6 +35,8 @@ export function footprint(c: ResolvedCreateNode): Rect {
       return { x: c.x, y: c.y, w: c.w ?? GEO.w, h: c.h ?? GEO.h }
     case 'frame':
       return { x: c.x, y: c.y, w: c.w ?? FRAME.w, h: c.h ?? FRAME.h }
+    case 'image':
+      return { x: c.x, y: c.y, w: c.w ?? IMAGE_SLOT_DEFAULT_SIZE.w, h: c.h ?? IMAGE_SLOT_DEFAULT_SIZE.h }
     case 'line':
     case 'draw':
       return unionRect(c.points.map((p) => ({ ...p, w: 0, h: 0 }))) ?? { x: c.x, y: c.y, w: 0, h: 0 }
@@ -115,5 +118,12 @@ export function buildCreate(c: ResolvedCreateNode, p: Placement): TLShapePartial
     }
     case 'youtube':
       return c.youtube ? youtubeShapePartial(p.id, { ...c.youtube, start: 0 }, pos) : null
+    case 'image': {
+      const { w, h } = footprint(c)
+      return {
+        ...base, type: IMAGE_SLOT_SHAPE, ...pos,
+        props: { w, h, query: c.query?.trim() || c.text },
+      } satisfies TLShapePartial<ImageSlotShape>
+    }
   }
 }

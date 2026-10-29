@@ -1,5 +1,6 @@
 import type { TLAnyShapeUtilConstructor } from 'tldraw'
+import { ImageSlotShapeUtil } from './image-slot/ImageSlotShapeUtil'
 import { YouTubeShapeUtil } from './youtube/YouTubeShapeUtil'
 
 /** Referência estável passada ao <Tldraw shapeUtils>. */
-export const customShapeUtils: TLAnyShapeUtilConstructor[] = [YouTubeShapeUtil]
+export const customShapeUtils: TLAnyShapeUtilConstructor[] = [YouTubeShapeUtil, ImageSlotShapeUtil]
