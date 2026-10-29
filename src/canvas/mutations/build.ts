@@ -1,6 +1,6 @@
 import {
   compressLegacySegments,
-  getIndices,
+  getIndicesBetween,
   toRichText,
   type TLDrawShape,
   type TLFrameShape,
@@ -127,7 +127,8 @@ export function buildCreate(c: ResolvedCreateNode, p: Placement): TLShapePartial
     }
     case 'line': {
       const { origin, rel } = relPoints(c.points)
-      const keys = getIndices(rel.length)
+      // getIndices(n) devolve n+1 índices; getIndicesBetween devolve exatamente n.
+      const keys = getIndicesBetween(null, null, rel.length)
       const points = Object.fromEntries(keys.map((k, i) => [k, { id: k, index: k, ...rel[i]! }]))
       const { props, meta } = styleOf(c, 'line', p.ds)
       return {

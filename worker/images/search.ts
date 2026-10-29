@@ -12,6 +12,9 @@ const TIMEOUT_MS = 10_000
  */
 const exhausted = new Map<ImageSource, number>()
 
+/** Só para testes. */
+export const resetQuotaBreaker = () => exhausted.clear()
+
 /** `only` restringe a uma fonte (o picker consulta cada fonte em paralelo e mostra progressivamente). */
 export async function searchImages(raw: string, env: ImageEnv, only?: ImageSource): Promise<ImageSearchResponse> {
   let english: Promise<string> | undefined
