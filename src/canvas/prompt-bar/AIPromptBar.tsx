@@ -1,14 +1,39 @@
 import { memo, useCallback, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Box, stopEventPropagation, useEditor, useQuickReactor } from 'tldraw'
+import { PROVIDERS, ProviderSchema, type Provider } from '../../shared/mutations'
 import type { SubgraphPayload } from '../../shared/subgraph'
 import { extractSubgraph } from '../subgraph/extract'
 import { useSelectionVisible } from '../subgraph/useSelectionVisible'
 import { BAR_HEIGHT, computeBarPosition } from './position'
 
-export type PromptSubmitHandler = (prompt: string, payload: SubgraphPayload) => void | Promise<void>
+export interface PromptSubmission {
+  prompt: string
+  payload: SubgraphPayload
+  provider: Provider
+}
+export type PromptSubmitHandler = (input: PromptSubmission) => Promise<void>
 
 interface Props {
   onSubmit: PromptSubmitHandler
+}
+
+const PROVIDER_KEY = 'reif:provider'
+const PROVIDER_LABEL: Record<Provider, string> = { gemini: 'Gemini', claude: 'Claude' }
+
+function loadProvider(): Provider {
+  try {
+    return ProviderSchema.catch('gemini').parse(localStorage.getItem(PROVIDER_KEY))
+  } catch {
+    return 'gemini'
+  }
+}
+
+function saveProvider(p: Provider) {
+  try {
+    localStorage.setItem(PROVIDER_KEY, p)
+  } catch {
+    /* storage indisponível */
+  }
 }
 
 /** Montado no slot InFrontOfTheCanvas. */
@@ -23,7 +48,9 @@ function PromptBarInner({ onSubmit }: Props) {
   const ref = useRef<HTMLFormElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [prompt, setPrompt] = useState('')
+  const [provider, setProvider] = useState<Provider>(loadProvider)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Posição fora do ciclo do React: reage a câmera/seleção e escreve direto no DOM.
   useQuickReactor(
@@ -49,19 +76,27 @@ function PromptBarInner({ onSubmit }: Props) {
       const payload = extractSubgraph(editor)
       if (!text || !payload || busy) return
       setBusy(true)
+      setError(null)
       try {
-        await onSubmit(text, payload)
+        await onSubmit({ prompt: text, payload, provider })
         setPrompt('')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
       } finally {
         setBusy(false)
       }
     },
-    [editor, onSubmit, prompt, busy],
+    [editor, onSubmit, prompt, provider, busy],
   )
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
     e.stopPropagation()
     if (e.key === 'Escape') inputRef.current?.blur()
+  }, [])
+
+  const handleProvider = useCallback((p: Provider) => {
+    setProvider(p)
+    saveProvider(p)
   }, [])
 
   return (
@@ -75,16 +110,27 @@ function PromptBarInner({ onSubmit }: Props) {
       className="pointer-events-auto absolute top-0 left-0 flex items-center gap-2 rounded-xl border border-black/10 bg-white/95 px-3 shadow-lg backdrop-blur will-change-transform"
       data-testid="ai-prompt-bar"
     >
-      <span className="text-sm select-none" aria-hidden>
-        ✦
-      </span>
+      <select
+        value={provider}
+        onChange={(e) => handleProvider(e.target.value as Provider)}
+        onKeyDown={handleKeyDown}
+        disabled={busy}
+        className="bg-transparent text-xs text-black/60 outline-none"
+        aria-label="Modelo"
+      >
+        {PROVIDERS.map((p) => (
+          <option key={p} value={p}>
+            {PROVIDER_LABEL[p]}
+          </option>
+        ))}
+      </select>
       <input
         ref={inputRef}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={busy}
-        placeholder="Transformar seleção…"
+        placeholder={busy ? 'Pensando…' : 'Transformar seleção…'}
         className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-black/40"
         aria-label="Prompt para a seleção"
       />
@@ -95,6 +141,11 @@ function PromptBarInner({ onSubmit }: Props) {
       >
         {busy ? '…' : 'Enviar'}
       </button>
+      {error && (
+        <p className="absolute top-full left-0 mt-1 w-full truncate rounded-md bg-red-50 px-2 py-1 text-xs text-red-700" title={error}>
+          {error}
+        </p>
+      )}
     </form>
   )
 }
