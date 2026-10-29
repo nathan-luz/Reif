@@ -30,6 +30,8 @@ export const SubgraphEdgeSchema = z.object({
 export type SubgraphEdge = z.infer<typeof SubgraphEdgeSchema>
 
 export const SubgraphPayloadSchema = z.object({
+  /** selection = nós selecionados; viewport = nada selecionado, bounds é a área visível. */
+  mode: z.enum(['selection', 'viewport']).default('selection'),
   bounds: RectSchema,
   nodes: z.array(SubgraphNodeSchema),
   edges: z.array(SubgraphEdgeSchema),

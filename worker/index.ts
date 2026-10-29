@@ -4,6 +4,7 @@ import { isVideoId } from '../src/shapes/youtube/youtube-url'
 import {
   LLMPlanSchema,
   sanitizePlan,
+  stripEmptyOptionals,
   TransformRequestSchema,
   type Provider,
 } from '../src/shared/mutations'
@@ -53,7 +54,7 @@ app.post('/api/transform', async (c) => {
       user: buildUserMessage(req),
       schema: PLAN_JSON_SCHEMA,
     })
-    const plan = LLMPlanSchema.safeParse(raw)
+    const plan = LLMPlanSchema.safeParse(stripEmptyOptionals(raw))
     if (!plan.success) return c.json({ error: 'resposta do LLM fora do schema', issues: plan.error.issues }, 502)
     return c.json(await resolvePlan(sanitizePlan(plan.data, req.subgraph), c.env))
   } catch (err) {

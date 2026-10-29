@@ -10,6 +10,12 @@ const OMITTED_PROPS = new Set([
   'growY',
   'fontSizeAdjustment',
   'textLastEditedBy',
+  'segments',
+  'points',
+  'isComplete',
+  'isPen',
+  'scaleX',
+  'scaleY',
 ])
 
 const isMeaningful = (v: unknown) => v !== '' && v !== null && v !== undefined
@@ -79,8 +85,22 @@ export function extractSubgraph(editor: Editor): SubgraphPayload | null {
   }
 
   return {
+    mode: 'selection',
     bounds: { x: round(bounds.x), y: round(bounds.y), w: round(bounds.w), h: round(bounds.h) },
     nodes: nodeShapes.flatMap((s) => toNode(editor, s) ?? []),
     edges: [...arrows.values()].map((a) => toEdge(editor, a)),
+  }
+}
+
+/** Sem seleção: contexto é a área visível (com margem), sem nós editáveis. */
+export function extractViewportContext(editor: Editor): SubgraphPayload {
+  const vp = editor.getViewportPageBounds()
+  const mx = vp.w * 0.1
+  const my = vp.h * 0.15
+  return {
+    mode: 'viewport',
+    bounds: { x: round(vp.x + mx), y: round(vp.y + my), w: round(vp.w - mx * 2), h: round(vp.h - my * 2) },
+    nodes: [],
+    edges: [],
   }
 }

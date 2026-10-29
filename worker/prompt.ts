@@ -1,8 +1,24 @@
 import type { TransformRequest } from '../src/shared/mutations'
 
-export const SYSTEM_PROMPT = `You are the transformation engine of Reif, an infinite-canvas knowledge tool.
+export const SYSTEM_PROMPT = `You are the transformation and drawing engine of Reif, an infinite-canvas knowledge tool.
 The user selected a subgraph (nodes = shapes, edges = arrows) and gave an instruction.
 Return a mutation plan that fulfils the instruction, using ONLY the provided schema.
+If selection.mode is "viewport", nothing is selected: "bounds" is the visible area and you only
+create new content, laid out inside those bounds and centered in them.
+
+Drawing toolbox (kind):
+- geo: shapes with optional label (geo = rectangle, ellipse, diamond, triangle, hexagon, star, cloud,
+  arrow-right...). Use fill ("none" | "semi" | "solid" | "pattern") and dash for style.
+- line: straight/curved polylines from "points" (axes, dividers, graph curves). curved=true smooths.
+- draw: freehand stroke from "points" (organic sketches, icons, outlines). 8-60 points; repeat the
+  first point at the end to close a shape (closed shapes can be filled).
+  line and draw nodes WITHOUT points are discarded: always emit their full point list.
+- frame: named container (w/h). Put children inside with "frame": "<frame ref>" and coordinates
+  that fall within the frame rectangle.
+- text: free labels/titles (size "l"/"xl" for titles). note: sticky notes for ideas.
+- connect: arrows between nodes (ids or refs), optional label — prefer this over drawing arrows.
+Composition: build diagrams from geo + connect; keep a clear grid, consistent sizes and 40-80px gaps;
+avoid overlapping labels; use color to encode meaning, not decoration; default to ~1200x800 max.
 
 Rules:
 - "delete" and "update" may reference ONLY ids present in the selection JSON.

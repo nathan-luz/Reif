@@ -1,10 +1,11 @@
-import { memo, useCallback, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { Box, stopEventPropagation, useEditor, useQuickReactor } from 'tldraw'
+import { memo, useCallback, useEffect, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent } from 'react'
+import { Box, stopEventPropagation, useEditor, useQuickReactor, useValue } from 'tldraw'
 import { PROVIDERS, ProviderSchema, type Provider } from '../../shared/mutations'
 import type { SubgraphPayload } from '../../shared/subgraph'
-import { extractSubgraph } from '../subgraph/extract'
-import { useSelectionVisible } from '../subgraph/useSelectionVisible'
+import { extractSubgraph, extractViewportContext } from '../subgraph/extract'
+import { usePromptBarMode, type PromptBarMode } from '../subgraph/useSelectionVisible'
 import { BAR_HEIGHT, computeBarPosition } from './position'
+import { promptBarOpen } from './state'
 
 export interface PromptSubmission {
   prompt: string
@@ -39,12 +40,14 @@ function saveProvider(p: Provider) {
 
 /** Montado no slot InFrontOfTheCanvas. */
 export const AIPromptBar = memo(function AIPromptBar({ onSubmit }: Props) {
-  const visible = useSelectionVisible()
-  if (!visible) return null
-  return <PromptBarInner onSubmit={onSubmit} />
+  const mode = usePromptBarMode()
+  if (mode === 'hidden') return null
+  return <PromptBarInner onSubmit={onSubmit} mode={mode} />
 })
 
-function PromptBarInner({ onSubmit }: Props) {
+const VIEWPORT_TOP = 72
+
+function PromptBarInner({ onSubmit, mode }: Props & { mode: Exclude<PromptBarMode, 'hidden'> }) {
   const editor = useEditor()
   const ref = useRef<HTMLFormElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -59,12 +62,16 @@ function PromptBarInner({ onSubmit }: Props) {
     'reif:prompt-bar-position',
     () => {
       const el = ref.current
-      const page = editor.getSelectionRotatedPageBounds()
-      if (!el || !page) return
-      const tl = editor.pageToViewport({ x: page.minX, y: page.minY })
-      const br = editor.pageToViewport({ x: page.maxX, y: page.maxY })
+      if (!el) return
       const vp = editor.getViewportScreenBounds()
-      const { x, y, width } = computeBarPosition(Box.FromPoints([tl, br]), vp)
+      const page = editor.getSelectionRotatedPageBounds()
+      const sel = page
+        ? Box.FromPoints([
+            editor.pageToViewport({ x: page.minX, y: page.minY }),
+            editor.pageToViewport({ x: page.maxX, y: page.maxY }),
+          ])
+        : new Box(vp.w / 2, VIEWPORT_TOP + BAR_HEIGHT + 12, 0, 0)
+      const { x, y, width } = computeBarPosition(sel, vp)
       el.style.transform = `translate(${x}px, ${y}px)`
       el.style.width = `${width}px`
     },
@@ -75,7 +82,7 @@ function PromptBarInner({ onSubmit }: Props) {
     async (e: FormEvent) => {
       e.preventDefault()
       const text = prompt.trim()
-      const payload = extractSubgraph(editor)
+      const payload = mode === 'selection' ? extractSubgraph(editor) : extractViewportContext(editor)
       if (!text || !payload || busy) return
       setBusy(true)
       setError(null)
@@ -84,19 +91,36 @@ function PromptBarInner({ onSubmit }: Props) {
         const warnings = await onSubmit({ prompt: text, payload, provider })
         if (warnings.length) setWarning(warnings.join(' · '))
         setPrompt('')
+        promptBarOpen.set(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       } finally {
         setBusy(false)
       }
     },
-    [editor, onSubmit, prompt, provider, busy],
+    [editor, onSubmit, prompt, provider, busy, mode],
   )
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
     e.stopPropagation()
-    if (e.key === 'Escape') inputRef.current?.blur()
+    if (e.key === 'Escape') {
+      promptBarOpen.set(false)
+      inputRef.current?.blur()
+    }
   }, [])
+
+  // Atalho "/" foca o input; sem seleção, a barra nasce focada.
+  const open = useValue(promptBarOpen)
+  useEffect(() => {
+    if (open || mode === 'viewport') inputRef.current?.focus()
+  }, [open, mode])
+
+  const handleBlur = useCallback(
+    (e: FocusEvent<HTMLFormElement>) => {
+      if (!busy && !e.currentTarget.contains(e.relatedTarget as Node | null)) promptBarOpen.set(false)
+    },
+    [busy],
+  )
 
   const handleProvider = useCallback((p: Provider) => {
     setProvider(p)
@@ -107,6 +131,7 @@ function PromptBarInner({ onSubmit }: Props) {
     <form
       ref={ref}
       onSubmit={handleSubmit}
+      onBlur={handleBlur}
       onPointerDown={stopEventPropagation}
       onPointerUp={stopEventPropagation}
       onWheel={stopEventPropagation}
@@ -134,7 +159,7 @@ function PromptBarInner({ onSubmit }: Props) {
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={busy}
-        placeholder={busy ? 'Pensando…' : 'Transformar seleção…'}
+        placeholder={busy ? 'Pensando…' : mode === 'selection' ? 'Transformar seleção…' : 'Desenhar aqui…'}
         className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-black/40"
         aria-label="Prompt para a seleção"
       />

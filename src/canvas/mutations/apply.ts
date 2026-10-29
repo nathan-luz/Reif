@@ -4,53 +4,21 @@ import {
   type Editor,
   type TLArrowBinding,
   type TLArrowShape,
-  type TLGeoShape,
-  type TLNoteShape,
   type TLShape,
   type TLShapeId,
   type TLShapePartial,
-  type TLTextShape,
 } from 'tldraw'
-import type { MutationPlan, ResolvedCreateNode, Update } from '../../shared/mutations'
-import { youtubeShapePartial } from '../../shapes/youtube/create'
-import { YOUTUBE_DEFAULT_SIZE } from '../../shapes/youtube/types'
+import type { MutationPlan, Update } from '../../shared/mutations'
 import type { SubgraphPayload } from '../../shared/subgraph'
-import { placeWithoutOverlap, type Rect } from './placement'
-
-const NOTE_SIZE = 200
-const DEFAULT_GEO = { w: 240, h: 120 }
-const DEFAULT_TEXT = { w: 240, h: 60 }
+import { buildCreate, footprint, type Placement } from './build'
+import { groupOffset, type Rect } from './placement'
 
 const asId = (id: string) => id as TLShapeId
-
-function sizeOf(c: ResolvedCreateNode): { w: number; h: number } {
-  if (c.kind === 'youtube') return YOUTUBE_DEFAULT_SIZE
-  if (c.kind === 'note') return { w: NOTE_SIZE, h: NOTE_SIZE }
-  if (c.kind === 'geo') return { w: c.w ?? DEFAULT_GEO.w, h: c.h ?? DEFAULT_GEO.h }
-  return DEFAULT_TEXT
-}
-
-function buildCreate(c: ResolvedCreateNode, id: TLShapeId, at: Rect): TLShapePartial | null {
-  const richText = toRichText(c.text)
-  const color = c.color ? { color: c.color } : {}
-  switch (c.kind) {
-    case 'note':
-      return { id, type: 'note', x: at.x, y: at.y, props: { richText, ...color } } satisfies TLShapePartial<TLNoteShape>
-    case 'geo':
-      return {
-        id, type: 'geo', x: at.x, y: at.y,
-        props: { geo: 'rectangle', w: at.w, h: at.h, richText, ...color },
-      } satisfies TLShapePartial<TLGeoShape>
-    case 'text':
-      return { id, type: 'text', x: at.x, y: at.y, props: { richText, autoSize: true, ...color } } satisfies TLShapePartial<TLTextShape>
-    case 'youtube':
-      return c.youtube ? youtubeShapePartial(id, { ...c.youtube, start: 0 }, at) : null
-  }
-}
 
 function buildUpdate(shape: TLShape, u: Update): TLShapePartial {
   const props: Record<string, unknown> = {}
   if (u.text !== undefined && 'richText' in shape.props) props['richText'] = toRichText(u.text)
+  if (u.text !== undefined && shape.type === 'frame') props['name'] = u.text
   if (u.color !== undefined && 'color' in shape.props) props['color'] = u.color
   return {
     id: shape.id,
@@ -75,6 +43,16 @@ function connect(editor: Editor, from: TLShapeId, to: TLShapeId, label?: string)
   return id
 }
 
+function occupiedRects(editor: Editor): Rect[] {
+  return editor
+    .getCurrentPageShapes()
+    .filter((s) => s.type !== 'arrow' && !s.parentId.startsWith('shape:'))
+    .flatMap((s) => {
+      const b = editor.getShapePageBounds(s)
+      return b ? [{ x: b.x, y: b.y, w: b.w, h: b.h }] : []
+    })
+}
+
 /** Aplica o plano numa única transação de histórico (1 Ctrl+Z desfaz tudo). */
 export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: SubgraphPayload): TLShapeId[] {
   const created: TLShapeId[] = []
@@ -95,23 +73,21 @@ export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: Subgraph
     })
     if (updates.length) editor.updateShapes(updates)
 
-    // CREATE com resolução de colisão contra o que restou na página
-    const occupied: Rect[] = editor
-      .getCurrentPageShapes()
-      .filter((s) => s.type !== 'arrow')
-      .flatMap((s) => {
-        const b = editor.getShapePageBounds(s)
-        return b ? [{ x: b.x, y: b.y, w: b.w, h: b.h }] : []
-      })
-
+    // CREATE: composição deslocada como bloco; frames antes dos filhos
+    const dx = groupOffset(plan.create.map(footprint), occupiedRects(editor))
+    const ordered = [...plan.create].sort((a, b) => Number(b.kind === 'frame') - Number(a.kind === 'frame'))
     const refs = new Map<string, TLShapeId>()
-    for (const c of plan.create) {
+    const frames = new Map<string, Placement['parent']>()
+
+    for (const c of ordered) {
       const id = createShapeId()
-      const partial = buildCreate(c, id, placeWithoutOverlap({ x: c.x, y: c.y, ...sizeOf(c) }, occupied))
+      const parent = c.frame ? frames.get(c.frame) : undefined
+      const partial = buildCreate(c, { id, dx, ...(parent ? { parent } : {}) })
       if (!partial) continue
       editor.createShape(partial)
       refs.set(c.ref, id)
-      created.push(id)
+      if (c.kind === 'frame') frames.set(c.ref, { id, x: c.x + dx, y: c.y })
+      if (!parent) created.push(id)
     }
 
     // CONNECT
