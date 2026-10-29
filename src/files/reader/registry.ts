@@ -10,4 +10,9 @@ export const READERS: Partial<Record<FileKind, ComponentType<ReaderProps>>> = {
   epub: lazy(() => import('./DocReader')),
   slides: lazy(() => import('./SlidesReader')),
   sheet: lazy(() => import('./SheetReader')),
+  html: lazy(() => import('./HtmlReader')),
+  notebook: lazy(() => import('./NotebookReader')),
+  code: lazy(() => import('./CodeReader')),
+  bib: lazy(() => import('./BibReader')),
+  video: lazy(() => import('./VideoReader')),
 }

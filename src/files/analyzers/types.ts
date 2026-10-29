@@ -12,7 +12,12 @@ export interface Analysis {
   model?: unknown
 }
 
-export type Analyzer = (file: Blob, name: string) => Promise<Analysis>
+export interface AnalyzeContext {
+  /** URL de origem (artigos: resolve links/imagens relativos). */
+  sourceUrl?: string
+}
+
+export type Analyzer = (file: Blob, name: string, ctx?: AnalyzeContext) => Promise<Analysis>
 
 export const MAX_TEXT = 400_000
 export const EXCERPT = 420

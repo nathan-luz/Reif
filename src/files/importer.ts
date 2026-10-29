@@ -63,7 +63,8 @@ async function analyze(editor: Editor, id: TLShapeId, blob: Blob) {
   const shape = editor.getShape<FileShape>(id)
   if (!shape) return
   try {
-    const analysis = await (await loadAnalyzer(shape.props.kind))(blob, shape.props.name)
+    const ctx = shape.props.sourceUrl ? { sourceUrl: shape.props.sourceUrl } : {}
+    const analysis = await (await loadAnalyzer(shape.props.kind))(blob, shape.props.name, ctx)
     await applyAnalysis(editor, id, derivedKey(shape), analysis)
   } catch (err) {
     console.error(err)
@@ -148,7 +149,9 @@ async function head(url: string): Promise<HeadInfo> {
 export async function importFromUrl(editor: Editor, url: string, point?: VecLike): Promise<TLShapeId | null> {
   try {
     const info = await head(url)
-    const name = info.name || fileNameFromUrl(url)
+    let name = info.name || fileNameFromUrl(url)
+    // páginas web: nome estável com .html (o título real vem do Readability)
+    if (/^text\/html|xhtml/.test(info.type) && !/\.html?$/i.test(name)) name = `${new URL(url).hostname}.html`
     const kind = accept(name, info.type, info.size)
     if (!kind) return null
     if (!info.size || info.size <= WEB_COPY_LIMIT) {
@@ -176,7 +179,7 @@ export async function importFromUrl(editor: Editor, url: string, point?: VecLike
 export async function hydrateRemote(editor: Editor, shape: FileShape): Promise<Blob> {
   const blob = await getFileBlob(shape)
   if (shape.props.status === 'remote') {
-    const analysis = await (await loadAnalyzer(shape.props.kind))(blob, shape.props.name)
+    const analysis = await (await loadAnalyzer(shape.props.kind))(blob, shape.props.name, { sourceUrl: shape.props.sourceUrl })
     await applyAnalysis(editor, shape.id, derivedKey(shape), analysis)
     editor.run(
       () => editor.updateShape<FileShape>({ id: shape.id, type: FILE_SHAPE, props: { status: 'remote', stats: `${analysis.stats} · link` } }),

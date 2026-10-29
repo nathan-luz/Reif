@@ -18,3 +18,15 @@
 
 /* Camada das sobreposições do Reif: acima dos painéis/menus do tldraw, abaixo de diálogos. */
 .reif-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 350; }
+
+/* Código (highlight.js) com cores que funcionam em claro e escuro. */
+.reif-code { background: var(--tl-color-muted-2); color: var(--tl-color-text-1); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.reif-code .hljs-keyword, .reif-code .hljs-selector-tag, .reif-code .hljs-built_in, .reif-code .hljs-type { color: #c2410c; }
+.reif-code .hljs-string, .reif-code .hljs-regexp, .reif-code .hljs-attr { color: #15803d; }
+.reif-code .hljs-comment, .reif-code .hljs-quote { color: #6b7280; font-style: italic; }
+.reif-code .hljs-number, .reif-code .hljs-literal { color: #7c3aed; }
+.reif-code .hljs-title, .reif-code .hljs-function, .reif-code .hljs-section { color: #2563eb; }
+.tl-theme__dark .reif-code .hljs-keyword, .tl-theme__dark .reif-code .hljs-built_in { color: #fb923c; }
+.tl-theme__dark .reif-code .hljs-string, .tl-theme__dark .reif-code .hljs-attr { color: #4ade80; }
+.tl-theme__dark .reif-code .hljs-number, .tl-theme__dark .reif-code .hljs-literal { color: #c4b5fd; }
+.tl-theme__dark .reif-code .hljs-title, .tl-theme__dark .reif-code .hljs-function { color: #60a5fa; }

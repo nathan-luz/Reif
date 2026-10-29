@@ -1,8 +1,8 @@
 import type { FileShape } from '../shapes/file/types'
 import { getBlob } from './store'
 
-/** Arquivos só-link baixados nesta sessão (não persistidos). */
-const remoteCache = new Map<string, Blob>()
+/** Downloads de arquivos só-link nesta sessão (promise em cache: chamadas simultâneas baixam uma vez). */
+const remoteCache = new Map<string, Promise<Blob>>()
 
 export async function downloadViaProxy(url: string, signal?: AbortSignal): Promise<Blob> {
   const res = await fetch(`/api/files/fetch?url=${encodeURIComponent(url)}`, signal ? { signal } : {})
@@ -11,18 +11,20 @@ export async function downloadViaProxy(url: string, signal?: AbortSignal): Promi
 }
 
 /** Blob do arquivo: IndexedDB (cópia local) ou download sob demanda (só link). */
-export async function getFileBlob(shape: FileShape, signal?: AbortSignal): Promise<Blob> {
+export async function getFileBlob(shape: FileShape): Promise<Blob> {
   const { fileId, sourceUrl } = shape.props
   if (fileId) {
     const blob = await getBlob(fileId)
     if (blob) return blob
   }
   if (!sourceUrl) throw new Error('Arquivo não encontrado neste navegador')
-  const cached = remoteCache.get(sourceUrl)
-  if (cached) return cached
-  const blob = await downloadViaProxy(sourceUrl, signal)
-  remoteCache.set(sourceUrl, blob)
-  return blob
+  let pending = remoteCache.get(sourceUrl)
+  if (!pending) {
+    pending = downloadViaProxy(sourceUrl)
+    remoteCache.set(sourceUrl, pending)
+    pending.catch(() => remoteCache.delete(sourceUrl))
+  }
+  return pending
 }
 
 /** Chave estável para derivados (thumb/texto) de arquivos locais ou só-link. */
