@@ -103,3 +103,14 @@ export const makeOdp = () =>
     mimetype: 'application/vnd.oasis.opendocument.presentation',
     'content.xml': `<?xml version="1.0"?><office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"><office:body><office:presentation><draw:page><draw:frame presentation:class="title"><draw:text-box><text:p>Genética</text:p></draw:text-box></draw:frame><draw:frame><draw:text-box><text:p>Leis de Mendel</text:p></draw:text-box></draw:frame></draw:page></office:presentation></office:body></office:document-content>`,
   })
+
+export async function makeXlsx(): Promise<Buffer> {
+  const XLSX = await import('xlsx')
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Aluno', 'Nota'], ['Ana', 9.5], ['Bruno', 7]]), 'Notas')
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Data', 'Presença'], ['01/03', 'sim']]), 'Frequência')
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+}
+
+export const makeCsv = (rows: number) =>
+  Buffer.from(['id,nome,comentario', ...Array.from({ length: rows }, (_, i) => `${i + 1},Aluno ${i + 1},"texto, com vírgula ${i + 1}"`)].join('\n'))

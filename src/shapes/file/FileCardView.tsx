@@ -23,6 +23,20 @@ export const FileCardView = memo(function FileCardView({ shape }: { shape: FileS
       ) : (
         <div className="flex h-full items-center justify-center text-5xl opacity-40">{KIND_ICON[kind]}</div>
       )
+    ) : kind === 'sheet' && excerpt ? (
+      <table className="w-full table-fixed border-collapse font-mono text-[10px] text-[var(--tl-color-text-1)]">
+        <tbody>
+          {excerpt.split('\n').map((line, r) => (
+            <tr key={r} className={r === 0 ? 'font-semibold' : ''}>
+              {line.split('\t').map((c, i) => (
+                <td key={i} className="truncate border-b border-[var(--tl-color-muted-2)] px-2 py-1">
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     ) : (
       <p
         className={`h-full overflow-hidden px-3 pt-2 text-[11px] leading-snug whitespace-pre-wrap text-[var(--tl-color-text-1)] ${
