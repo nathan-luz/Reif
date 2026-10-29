@@ -25,11 +25,15 @@ export function DesignSystemBridge() {
 
   // O fundo do canvas vem de uma variável CSS (o tema só alimenta exportações).
   useLayoutEffect(() => {
-    const bg = getDesignSystem(id)[mode].background
+    const palette = buildTheme(getDesignSystem(id)).colors[mode]
     const container = editor.getContainer()
-    container.style.setProperty('--tl-color-background', bg)
+    const vars = {
+      '--tl-color-background': getDesignSystem(id)[mode].background,
+      '--tl-color-text': palette.text,
+    }
+    for (const [k, v] of Object.entries(vars)) container.style.setProperty(k, v)
     return () => {
-      container.style.removeProperty('--tl-color-background')
+      for (const k of Object.keys(vars)) container.style.removeProperty(k)
     }
   }, [editor, id, mode])
 

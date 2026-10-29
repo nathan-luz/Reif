@@ -43,25 +43,20 @@ function paletteColors(p: DsPalette) {
   >
 }
 
-/** Tema = tema base + cores ds-* + fundo do whiteboard. Cores padrão do tldraw intactas. */
+const isDarkBackground = (hex: string) => luminance(hex) < 0.2
+
+/**
+ * Tema = paleta padrão do tldraw no "tom" do fundo + cores ds-* + fundo do whiteboard.
+ * Fundo escuro (ex.: Blueprint no modo claro) usa a paleta escura do tldraw, como o
+ * próprio dark mode faz: "preto" é exibido claro. Nenhum shape é alterado — só a exibição.
+ */
 export function buildTheme(ds: DesignSystem, base: TLTheme = DEFAULT_THEME): TLTheme {
-  return {
-    ...base,
-    colors: {
-      light: {
-        ...base.colors.light,
-        ...paletteColors(ds.light),
-        background: ds.light.background,
-        negativeSpace: ds.light.background,
-        selectionFill: ds.light.background,
-      },
-      dark: {
-        ...base.colors.dark,
-        ...paletteColors(ds.dark),
-        background: ds.dark.background,
-        negativeSpace: ds.dark.background,
-        selectionFill: ds.dark.background,
-      },
-    },
-  }
+  const forMode = (p: DsPalette) => ({
+    ...(isDarkBackground(p.background) ? DEFAULT_THEME.colors.dark : DEFAULT_THEME.colors.light),
+    ...paletteColors(p),
+    background: p.background,
+    negativeSpace: p.background,
+    selectionFill: p.background,
+  })
+  return { ...base, colors: { light: forMode(ds.light), dark: forMode(ds.dark) } }
 }
