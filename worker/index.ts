@@ -17,6 +17,7 @@ import { proxyImage, trackUnsplashDownload } from './images/proxy'
 import { searchImages } from './images/search'
 import { ImageSourceSchema } from '../src/shared/images'
 import { resolvePlan } from './resolvers'
+import { summarizeFile, summarizeText, transcribeFile, uploadToGemini } from './fileAi'
 import { summarizeVideo, transcribeVideo } from './video'
 import { VideoRequestSchema } from '../src/shared/video'
 import { fetchVideoTitle } from './resolvers/youtube'
@@ -119,6 +120,45 @@ app.post('/api/youtube/:action{transcript|summary}', async (c) => {
     console.error(err)
     const msg = err instanceof Error ? err.message : String(err)
     return c.json({ error: msg.slice(0, 500) }, 502)
+  }
+})
+
+/** Limite de corpo de requisição dos Workers (100 MB): acima disso a IA recusa o arquivo. */
+const MAX_AI_UPLOAD = 95 * 1024 * 1024
+
+// Áudio, vídeo e PDF: o arquivo vai em streaming para a Files API do Gemini.
+app.post('/api/files/ai/:mode{transcript|summary}', async (c) => {
+  if (!c.env.GEMINI_API_KEY) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 500)
+  const size = Number(c.req.header('content-length') ?? 0)
+  const mime = (c.req.header('content-type') ?? 'application/octet-stream').split(';')[0]!
+  const name = c.req.query('name') ?? 'arquivo'
+  const title = c.req.query('title')
+  const subject = mime.startsWith('audio/') ? 'audio' : mime.startsWith('video/') ? 'video' : 'document'
+  if (!size || !c.req.raw.body) return c.json({ error: 'arquivo vazio' }, 400)
+  if (size > MAX_AI_UPLOAD) return c.json({ error: `arquivo grande demais para a IA (máx. ${MAX_AI_UPLOAD / 1024 / 1024} MB)` }, 413)
+  try {
+    const file = await uploadToGemini(c.env.GEMINI_API_KEY, c.req.raw.body, size, mime, name)
+    const result =
+      c.req.param('mode') === 'transcript'
+        ? await transcribeFile(c.env.GEMINI_API_KEY, file, subject)
+        : await summarizeFile(c.env.GEMINI_API_KEY, file, subject, title)
+    return c.json(result)
+  } catch (err) {
+    console.error(err)
+    return c.json({ error: (err instanceof Error ? err.message : String(err)).slice(0, 500) }, 502)
+  }
+})
+
+// Demais documentos: resumo a partir do texto extraído no navegador.
+app.post('/api/files/ai-text/summary', async (c) => {
+  if (!c.env.GEMINI_API_KEY) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 500)
+  const body = await c.req.json<{ text?: string; title?: string }>().catch(() => ({}) as { text?: string; title?: string })
+  if (!body.text?.trim()) return c.json({ error: 'documento sem texto' }, 400)
+  try {
+    return c.json(await summarizeText(c.env.GEMINI_API_KEY, body.text.slice(0, 400_000), 'document', body.title))
+  } catch (err) {
+    console.error(err)
+    return c.json({ error: (err instanceof Error ? err.message : String(err)).slice(0, 500) }, 502)
   }
 })
 

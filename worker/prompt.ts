@@ -42,6 +42,13 @@ export function buildSystemPrompt(designSystemId: string | undefined): string {
   return `${SYSTEM_PROMPT}\n${describeForLLM(getDesignSystem(designSystemId))}`
 }
 
-export function buildUserMessage({ prompt, subgraph }: Pick<TransformRequest, 'prompt' | 'subgraph'>): string {
-  return `Instruction:\n${prompt}\n\nSelection:\n\`\`\`json\n${JSON.stringify(subgraph)}\n\`\`\``
+export function buildUserMessage({ prompt, subgraph, attachments }: Pick<TransformRequest, 'prompt' | 'subgraph' | 'attachments'>): string {
+  const docs = (attachments ?? [])
+    .map((a) => `<document id="${a.id}" name="${a.name.replace(/"/g, "'")}" kind="${a.kind}">\n${a.text}\n</document>`)
+    .join('\n')
+  return `Instruction:\n${prompt}\n\nSelection:\n\`\`\`json\n${JSON.stringify(subgraph)}\n\`\`\`${
+    docs
+      ? `\n\nFull content of the selected files (answer from it; questions about a document become notes/cards next to it):\n${docs}`
+      : ''
+  }`
 }

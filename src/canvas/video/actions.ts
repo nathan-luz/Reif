@@ -1,4 +1,4 @@
-import { atom, type Editor, type TLShapeId } from 'tldraw'
+import { atom, type Editor, type JsonObject, type TLShapeId } from 'tldraw'
 import { currentDesignSystem } from '../../design-system/state'
 import type { YouTubeShape } from '../../shapes/youtube/types'
 import {
@@ -40,32 +40,34 @@ function existingTranscript(editor: Editor, videoId: string): string | undefined
   return undefined
 }
 
-function renderTranscript(editor: Editor, video: YouTubeShape, t: Transcript) {
-  const label = video.props.title || 'vídeo'
+/** Transcrição ao lado da origem (vídeo do YouTube, áudio ou vídeo local). */
+export function renderTranscript(editor: Editor, sourceId: TLShapeId, label: string, t: Transcript, frameMeta?: JsonObject) {
   const header: Card[] = [
     { role: 'body', richText: timestampedText(t.segments.map((s) => ({ time: formatTime(s.t), text: s.text }))) },
   ]
   renderCards(editor, currentDesignSystem(), {
-    sourceId: video.id,
+    sourceId,
     frameName: `Transcrição · ${label}`,
     title: label,
     header,
     cards: [],
     columns: 1,
     columnWidth: 640,
-    frameMeta: { reifVideo: { videoId: video.props.videoId, kind: 'transcript', text: transcriptToText(t) } },
+    ...(frameMeta ? { frameMeta } : {}),
   })
 }
 
-function renderSummary(editor: Editor, video: YouTubeShape, s: Summary) {
+/** Enhanced summary. `media`: seções com timestamp (m:ss); documentos usam página/seção. */
+export function renderSummary(editor: Editor, sourceId: TLShapeId, label: string, s: Summary, media: boolean) {
+  const prefix = (start: number) => (media ? `[${formatTime(start)}] ` : start > 0 ? `[p. ${start}] ` : '')
   const cards: Card[] = s.sections.map((sec, i) => ({
     role: i % 2 === 0 ? 'primary' : 'secondary',
-    richText: cardText({ heading: `[${formatTime(sec.start)}] ${sec.heading}`, bullets: sec.points }),
+    richText: cardText({ heading: `${prefix(sec.start)}${sec.heading}`, bullets: sec.points }),
   }))
   cards.push({ role: 'accent', richText: cardText({ heading: 'Principais conclusões', bullets: s.takeaways }) })
   renderCards(editor, currentDesignSystem(), {
-    sourceId: video.id,
-    frameName: `Resumo · ${video.props.title || s.title}`,
+    sourceId,
+    frameName: `Resumo · ${label || s.title}`,
     title: s.title,
     header: [{ role: 'highlight', richText: cardText({ heading: 'TL;DR', body: s.tldr }) }],
     cards,
@@ -82,14 +84,17 @@ export async function runVideoAction(editor: Editor, video: YouTubeShape, kind: 
     if (kind === 'transcript') {
       const t = await post('/api/youtube/transcript', base, (v) => TranscriptSchema.parse(v))
       const current = editor.getShape<YouTubeShape>(video.id) ?? video
-      renderTranscript(editor, current, t)
+      const label = current.props.title || 'vídeo'
+      renderTranscript(editor, current.id, label, t, {
+        reifVideo: { videoId: video.props.videoId, kind: 'transcript', text: transcriptToText(t) },
+      })
     } else {
       const transcript = existingTranscript(editor, video.props.videoId)
       const s = await post('/api/youtube/summary', { ...base, ...(transcript ? { transcript } : {}) }, (v) =>
         SummarySchema.parse(v),
       )
       const current = editor.getShape<YouTubeShape>(video.id) ?? video
-      renderSummary(editor, current, s)
+      renderSummary(editor, current.id, current.props.title, s, true)
     }
     setJob(video.id, undefined)
   } catch (err) {

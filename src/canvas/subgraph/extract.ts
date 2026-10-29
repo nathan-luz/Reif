@@ -18,6 +18,12 @@ const OMITTED_PROPS = new Set([
   'scaleY',
   'crop',
   'playing',
+  // cartões de arquivo: o texto vai como anexo; o resto é ruído para o LLM
+  'fileId',
+  'hasThumb',
+  'mime',
+  'status',
+  'excerpt',
 ])
 
 const isMeaningful = (v: unknown) => v !== '' && v !== null && v !== undefined

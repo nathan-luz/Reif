@@ -17,21 +17,27 @@ const stripSchema = (node: unknown): unknown => {
   )
 }
 
-const TRANSCRIPT_PROMPT = `Transcribe ALL speech in this video verbatim, in the original spoken language.
+export type Subject = 'video' | 'audio' | 'document'
+
+export const transcriptPrompt = (subject: Subject) => `Transcribe ALL speech in this ${subject} verbatim, in the original spoken language.
 Split into segments of roughly 20-40 seconds, each starting at a sentence boundary; "t" is the start time in seconds.
 Skip music-only or silent parts. Do not summarize or translate.`
 
-const SUMMARY_PROMPT = `You are an expert note-taker. Write an "enhanced summary" of the video in Brazilian Portuguese:
+export const summaryPrompt = (subject: Subject) => `You are an expert note-taker. Write an "enhanced summary" of the ${subject} in Brazilian Portuguese:
 rewrite the content into a well-organized study note — a short informative title, a 2-3 sentence TL;DR,
-3-8 sections in the order they appear (each with a heading, the start second, and 2-6 crisp bullet points capturing
-key ideas, definitions, numbers and examples), and 3-6 key takeaways.
-Remove filler, repetition, greetings and sponsor segments. Never invent facts that are not in the video.`
+3-8 sections in the order they appear (each with a heading, ${
+  subject === 'document' ? 'the page or section number where it starts (use 0 if unknown) as "start"' : 'the start second'
+}, and 2-6 crisp bullet points capturing key ideas, definitions, numbers and examples), and 3-6 key takeaways.
+Remove filler, repetition, greetings and sponsor segments. Never invent facts that are not in the ${subject}.`
+
+const TRANSCRIPT_PROMPT = transcriptPrompt('video')
+const SUMMARY_PROMPT = summaryPrompt('video')
 
 interface GeminiResponse {
   candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]
 }
 
-async function generate<T>(
+export async function generate<T>(
   apiKey: string,
   parts: unknown[],
   schema: z.ZodType<T>,

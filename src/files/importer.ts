@@ -6,6 +6,8 @@ import type { Analysis } from './analyzers/types'
 import { derivedKey, downloadViaProxy, getFileBlob } from './blob'
 import { CARD_SIZE, detectKind, formatBytes, KIND_LABEL, MAX_SIZE, WEB_COPY_LIMIT, type FileKind } from './kinds'
 import { checkStorage, newFileId, putBlob, putDerived } from './store'
+import { occupiedRects } from '../canvas/mutations/apply'
+import { groupOffset } from '../canvas/mutations/placement'
 
 const GAP = 24
 
@@ -104,20 +106,30 @@ function accept(name: string, mime: string, size: number): FileKind | null {
 /** Importa arquivos locais (upload, arrastar, colar, gravação) lado a lado a partir de `point`. */
 export async function importFiles(editor: Editor, files: File[], point?: VecLike, sourceUrl = ''): Promise<TLShapeId[]> {
   const origin = point ?? editor.getViewportPageBounds().center
+  const accepted = files.flatMap((file) => {
+    const kind = accept(file.name, file.type, file.size)
+    return kind ? [{ file, kind }] : []
+  })
+  // Linha centralizada no ponto; o bloco desvia do que já existe (nada nasce empilhado).
+  const totalW = accepted.reduce((w, a) => w + CARD_SIZE[a.kind].w, 0) + GAP * Math.max(0, accepted.length - 1)
+  let x = origin.x - totalW / 2
+  const slots = accepted.map((a) => {
+    const size = CARD_SIZE[a.kind]
+    const rect = { x, y: origin.y - size.h / 2, ...size }
+    x += size.w + GAP
+    return rect
+  })
+  const dx = groupOffset(slots, occupiedRects(editor))
   const ids: TLShapeId[] = []
-  let x = origin.x
   editor.markHistoryStoppingPoint('reif:import-files')
   const jobs: Promise<void>[] = []
-  for (const file of files) {
-    const kind = accept(file.name, file.type, file.size)
-    if (!kind) continue
+  for (const [i, { file, kind }] of accepted.entries()) {
     const fileId = newFileId()
-    const size = CARD_SIZE[kind]
-    const id = createCard(editor, { x, y: origin.y - size.h / 2 }, {
+    const slot = slots[i]!
+    const id = createCard(editor, { x: slot.x + dx, y: slot.y }, {
       kind, name: file.name, mime: file.type, size: file.size, fileId, sourceUrl, status: 'analyzing', stats: 'Analisando…',
     })
     ids.push(id)
-    x += size.w + GAP
     jobs.push(putBlob(fileId, file).then(() => analyze(editor, id, file)))
   }
   if (ids.length) {
@@ -161,8 +173,10 @@ export async function importFromUrl(editor: Editor, url: string, point?: VecLike
     }
     const at = point ?? editor.getViewportPageBounds().center
     const size = CARD_SIZE[kind]
+    const slot = { x: at.x - size.w / 2, y: at.y - size.h / 2, ...size }
+    const dx = groupOffset([slot], occupiedRects(editor))
     editor.markHistoryStoppingPoint('reif:import-link')
-    const id = createCard(editor, { x: at.x - size.w / 2, y: at.y - size.h / 2 }, {
+    const id = createCard(editor, { x: slot.x + dx, y: slot.y }, {
       kind, name, mime: info.type, size: info.size, fileId: '', sourceUrl: url, status: 'remote',
       stats: `Link · ${formatBytes(info.size)}`,
     })

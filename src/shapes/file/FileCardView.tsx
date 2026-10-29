@@ -3,6 +3,7 @@ import { derivedKey } from '../../files/blob'
 import { formatBytes, KIND_ICON, KIND_LABEL } from '../../files/kinds'
 import { useDerivedValue, useThumbUrl } from '../../files/useDerived'
 import { AudioPlayer } from './AudioPlayer'
+import { FileActions } from './FileActions'
 import type { FileShape } from './types'
 
 const THUMB_KINDS = new Set(['pdf', 'epub', 'slides', 'video'])
@@ -61,7 +62,10 @@ export const FileCardView = memo(function FileCardView({ shape }: { shape: FileS
         </span>
         <span className="text-[10px] tracking-wide text-[var(--tl-color-text-3)] uppercase">{KIND_LABEL[kind]}</span>
       </div>
-      <div className="relative min-h-0 flex-1 bg-[var(--tl-color-low)]">{body}</div>
+      <div className="relative min-h-0 flex-1 bg-[var(--tl-color-low)]">
+        {body}
+        <FileActions shape={shape} />
+      </div>
       <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[10px] text-[var(--tl-color-text-3)]">
         <span className="truncate" data-testid="file-stats">
           {status === 'analyzing' ? 'Analisando…' : stats}

@@ -101,6 +101,11 @@ export const TransformRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(4000),
   subgraph: SubgraphPayloadSchema,
   designSystem: z.string().max(40).optional(),
+  /** Texto completo dos arquivos selecionados ("perguntar ao documento"). */
+  attachments: z
+    .array(z.object({ id: z.string(), name: z.string().max(300), kind: z.string().max(20), text: z.string().max(150_000) }))
+    .max(10)
+    .optional(),
 })
 export type TransformRequest = z.infer<typeof TransformRequestSchema>
 
