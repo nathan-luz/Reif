@@ -1,6 +1,6 @@
-import { TransformResponseSchema, type MutationPlan, type TransformRequest } from '../../shared/mutations'
+import { TransformResponseSchema, type TransformRequest, type TransformResponse } from '../../shared/mutations'
 
-export async function requestTransform(req: TransformRequest, signal?: AbortSignal): Promise<MutationPlan> {
+export async function requestTransform(req: TransformRequest, signal?: AbortSignal): Promise<TransformResponse> {
   const res = await fetch('/api/transform', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -12,5 +12,5 @@ export async function requestTransform(req: TransformRequest, signal?: AbortSign
     const msg = (body as { error?: string } | null)?.error ?? `HTTP ${res.status}`
     throw new Error(msg)
   }
-  return TransformResponseSchema.parse(body).plan
+  return TransformResponseSchema.parse(body)
 }

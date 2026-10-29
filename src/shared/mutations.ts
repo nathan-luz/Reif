@@ -13,8 +13,11 @@ export type Provider = z.infer<typeof ProviderSchema>
 
 export const CreateNodeSchema = z.object({
   ref: z.string().describe('Id temporário único deste novo nó, ex: "n1". Usado em connect.'),
-  kind: z.enum(['note', 'text', 'geo']).describe('note = post-it 200x200; text = texto solto; geo = retângulo com texto'),
-  text: z.string(),
+  kind: z
+    .enum(['note', 'text', 'geo', 'youtube'])
+    .describe('note = post-it 200x200; text = texto solto; geo = retângulo com texto; youtube = vídeo 480x270'),
+  text: z.string().describe('Conteúdo do nó. Para youtube, legenda curta (ignorada na renderização).'),
+  query: z.string().optional().describe('Só para youtube: termos de busca precisos para encontrar o vídeo.'),
   color: ColorSchema.optional(),
   x: z.number().describe('Canto superior esquerdo, coordenadas de página'),
   y: z.number(),
@@ -39,13 +42,24 @@ export const UpdateSchema = z.object({
 })
 export type Update = z.infer<typeof UpdateSchema>
 
-export const MutationPlanSchema = z.object({
+/** Plano como o LLM o produz (sem mídia resolvida). */
+export const LLMPlanSchema = z.object({
   summary: z.string().describe('Uma frase curta descrevendo a mudança, no idioma do usuário'),
   delete: z.array(z.string()).describe('ids de nós/arestas existentes a remover'),
   update: z.array(UpdateSchema),
   create: z.array(CreateNodeSchema),
   connect: z.array(ConnectSchema).describe('Setas novas entre nós'),
 })
+export type LLMPlan = z.infer<typeof LLMPlanSchema>
+
+export const ResolvedMediaSchema = z.object({ videoId: z.string(), title: z.string() })
+
+/** Nó após o Worker resolver mídias (query → vídeo real). */
+export const ResolvedCreateNodeSchema = CreateNodeSchema.extend({ youtube: ResolvedMediaSchema.optional() })
+export type ResolvedCreateNode = z.infer<typeof ResolvedCreateNodeSchema>
+
+/** Plano pronto para aplicar no canvas. */
+export const MutationPlanSchema = LLMPlanSchema.extend({ create: z.array(ResolvedCreateNodeSchema) })
 export type MutationPlan = z.infer<typeof MutationPlanSchema>
 
 export const TransformRequestSchema = z.object({
@@ -55,13 +69,14 @@ export const TransformRequestSchema = z.object({
 })
 export type TransformRequest = z.infer<typeof TransformRequestSchema>
 
-export const TransformResponseSchema = z.object({ plan: MutationPlanSchema })
+export const TransformResponseSchema = z.object({ plan: MutationPlanSchema, warnings: z.array(z.string()) })
+export type TransformResponse = z.infer<typeof TransformResponseSchema>
 
 /**
  * Garante que o LLM só toca na seleção: descarta ids desconhecidos,
  * refs duplicadas e conexões para alvos inexistentes.
  */
-export function sanitizePlan(plan: MutationPlan, subgraph: SubgraphPayload): MutationPlan {
+export function sanitizePlan(plan: LLMPlan, subgraph: SubgraphPayload): LLMPlan {
   const known = new Set<string>([...subgraph.nodes.map((n) => n.id), ...subgraph.edges.map((e) => e.id)])
   const seenRefs = new Set<string>()
   const create = plan.create.filter((c) => {

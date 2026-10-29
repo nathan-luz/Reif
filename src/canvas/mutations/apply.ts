@@ -11,7 +11,9 @@ import {
   type TLShapePartial,
   type TLTextShape,
 } from 'tldraw'
-import type { CreateNode, MutationPlan, Update } from '../../shared/mutations'
+import type { MutationPlan, ResolvedCreateNode, Update } from '../../shared/mutations'
+import { youtubeShapePartial } from '../../shapes/youtube/create'
+import { YOUTUBE_DEFAULT_SIZE } from '../../shapes/youtube/types'
 import type { SubgraphPayload } from '../../shared/subgraph'
 import { placeWithoutOverlap, type Rect } from './placement'
 
@@ -21,13 +23,14 @@ const DEFAULT_TEXT = { w: 240, h: 60 }
 
 const asId = (id: string) => id as TLShapeId
 
-function sizeOf(c: CreateNode): { w: number; h: number } {
+function sizeOf(c: ResolvedCreateNode): { w: number; h: number } {
+  if (c.kind === 'youtube') return YOUTUBE_DEFAULT_SIZE
   if (c.kind === 'note') return { w: NOTE_SIZE, h: NOTE_SIZE }
   if (c.kind === 'geo') return { w: c.w ?? DEFAULT_GEO.w, h: c.h ?? DEFAULT_GEO.h }
   return DEFAULT_TEXT
 }
 
-function buildCreate(c: CreateNode, id: TLShapeId, at: Rect): TLShapePartial {
+function buildCreate(c: ResolvedCreateNode, id: TLShapeId, at: Rect): TLShapePartial | null {
   const richText = toRichText(c.text)
   const color = c.color ? { color: c.color } : {}
   switch (c.kind) {
@@ -40,6 +43,8 @@ function buildCreate(c: CreateNode, id: TLShapeId, at: Rect): TLShapePartial {
       } satisfies TLShapePartial<TLGeoShape>
     case 'text':
       return { id, type: 'text', x: at.x, y: at.y, props: { richText, autoSize: true, ...color } } satisfies TLShapePartial<TLTextShape>
+    case 'youtube':
+      return c.youtube ? youtubeShapePartial(id, { ...c.youtube, start: 0 }, at) : null
   }
 }
 
@@ -102,8 +107,9 @@ export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: Subgraph
     const refs = new Map<string, TLShapeId>()
     for (const c of plan.create) {
       const id = createShapeId()
-      const at = placeWithoutOverlap({ x: c.x, y: c.y, ...sizeOf(c) }, occupied)
-      editor.createShape(buildCreate(c, id, at))
+      const partial = buildCreate(c, id, placeWithoutOverlap({ x: c.x, y: c.y, ...sizeOf(c) }, occupied))
+      if (!partial) continue
+      editor.createShape(partial)
       refs.set(c.ref, id)
       created.push(id)
     }

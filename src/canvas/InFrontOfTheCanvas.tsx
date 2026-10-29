@@ -9,9 +9,10 @@ export function InFrontOfTheCanvas() {
 
   const handlePrompt = useCallback<PromptSubmitHandler>(
     async ({ prompt, payload, provider }) => {
-      const plan = await requestTransform({ prompt, provider, subgraph: payload })
-      console.info('[reif] plan', plan)
+      const { plan, warnings } = await requestTransform({ prompt, provider, subgraph: payload })
+      console.info('[reif] plan', plan, warnings)
       applyPlan(editor, plan, payload)
+      return warnings
     },
     [editor],
   )

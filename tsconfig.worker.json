@@ -16,5 +16,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["worker", "src/shared"]
+  "include": ["worker", "src/shared", "src/shapes/youtube/youtube-url.ts"]
 }

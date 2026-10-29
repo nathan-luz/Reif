@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { isVideoId } from '../src/shapes/youtube/youtube-url'
 import {
-  MutationPlanSchema,
+  LLMPlanSchema,
   sanitizePlan,
   TransformRequestSchema,
   type Provider,
@@ -10,15 +11,18 @@ import { buildUserMessage, SYSTEM_PROMPT } from './prompt'
 import { createClaude } from './providers/claude'
 import { createGemini } from './providers/gemini'
 import { ProviderError, type JsonSchema, type LLMProvider } from './providers/types'
+import { resolvePlan } from './resolvers'
+import { fetchVideoTitle } from './resolvers/youtube'
 
 type Env = {
   GEMINI_API_KEY?: string
   ANTHROPIC_API_KEY?: string
   GEMINI_MODEL?: string
   CLAUDE_MODEL?: string
+  YOUTUBE_API_KEY?: string
 }
 
-const PLAN_JSON_SCHEMA = z.toJSONSchema(MutationPlanSchema) as JsonSchema
+const PLAN_JSON_SCHEMA = z.toJSONSchema(LLMPlanSchema) as JsonSchema
 
 function getProvider(env: Env, provider: Provider): LLMProvider | null {
   switch (provider) {
@@ -49,9 +53,9 @@ app.post('/api/transform', async (c) => {
       user: buildUserMessage(req),
       schema: PLAN_JSON_SCHEMA,
     })
-    const plan = MutationPlanSchema.safeParse(raw)
+    const plan = LLMPlanSchema.safeParse(raw)
     if (!plan.success) return c.json({ error: 'resposta do LLM fora do schema', issues: plan.error.issues }, 502)
-    return c.json({ plan: sanitizePlan(plan.data, req.subgraph) })
+    return c.json(await resolvePlan(sanitizePlan(plan.data, req.subgraph), c.env))
   } catch (err) {
     if (err instanceof ProviderError) {
       console.error(err.message)
@@ -59,6 +63,15 @@ app.post('/api/transform', async (c) => {
     }
     throw err
   }
+})
+
+app.get('/api/youtube/meta/:id', async (c) => {
+  const id = c.req.param('id')
+  if (!isVideoId(id)) return c.json({ error: 'id inválido' }, 400)
+  const title = await fetchVideoTitle(id).catch(() => null)
+  if (!title) return c.json({ error: 'não encontrado' }, 404)
+  c.header('cache-control', 'public, max-age=86400')
+  return c.json({ title })
 })
 
 export default app

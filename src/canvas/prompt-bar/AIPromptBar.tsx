@@ -11,7 +11,8 @@ export interface PromptSubmission {
   payload: SubgraphPayload
   provider: Provider
 }
-export type PromptSubmitHandler = (input: PromptSubmission) => Promise<void>
+/** Retorna avisos não fatais (ex.: vídeo não encontrado). */
+export type PromptSubmitHandler = (input: PromptSubmission) => Promise<string[]>
 
 interface Props {
   onSubmit: PromptSubmitHandler
@@ -51,6 +52,7 @@ function PromptBarInner({ onSubmit }: Props) {
   const [provider, setProvider] = useState<Provider>(loadProvider)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
 
   // Posição fora do ciclo do React: reage a câmera/seleção e escreve direto no DOM.
   useQuickReactor(
@@ -77,8 +79,10 @@ function PromptBarInner({ onSubmit }: Props) {
       if (!text || !payload || busy) return
       setBusy(true)
       setError(null)
+      setWarning(null)
       try {
-        await onSubmit({ prompt: text, payload, provider })
+        const warnings = await onSubmit({ prompt: text, payload, provider })
+        if (warnings.length) setWarning(warnings.join(' · '))
         setPrompt('')
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -141,6 +145,11 @@ function PromptBarInner({ onSubmit }: Props) {
       >
         {busy ? '…' : 'Enviar'}
       </button>
+      {warning && !error && (
+        <p className="absolute top-full left-0 mt-1 w-full truncate rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800" title={warning}>
+          {warning}
+        </p>
+      )}
       {error && (
         <p className="absolute top-full left-0 mt-1 w-full truncate rounded-md bg-red-50 px-2 py-1 text-xs text-red-700" title={error}>
           {error}

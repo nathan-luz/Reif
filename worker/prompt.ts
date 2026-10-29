@@ -12,6 +12,9 @@ Rules:
   nodes to the right of the selection bounds (x >= bounds.x + bounds.w + 80), aligned to bounds.y.
 - Delete originals only when the instruction implies replacing them (e.g. "transform into", "merge").
 - Preserve the language of the existing content. Be concise: notes hold short text.
+- To add a YouTube video use kind "youtube" with a precise search "query" (use the language most
+  likely to return a good explanatory video). Never put video ids or URLs anywhere; the system searches.
+  Videos are 480x270.
 - Never invent ids. If the instruction cannot be done, return empty arrays and explain in "summary".`
 
 export function buildUserMessage({ prompt, subgraph }: TransformRequest): string {
