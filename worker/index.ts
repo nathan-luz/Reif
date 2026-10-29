@@ -8,7 +8,7 @@ import {
   TransformRequestSchema,
   type Provider,
 } from '../src/shared/mutations'
-import { buildUserMessage, SYSTEM_PROMPT } from './prompt'
+import { buildSystemPrompt, buildUserMessage } from './prompt'
 import { createClaude } from './providers/claude'
 import { createGemini } from './providers/gemini'
 import { ProviderError, type JsonSchema, type LLMProvider } from './providers/types'
@@ -56,7 +56,7 @@ app.post('/api/transform', async (c) => {
 
   try {
     const raw = await provider.generate({
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(req.designSystem),
       user: buildUserMessage(req),
       schema: PLAN_JSON_SCHEMA,
     })

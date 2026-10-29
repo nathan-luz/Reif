@@ -1,3 +1,4 @@
+import { describeForLLM, getDesignSystem } from '../src/shared/design-systems'
 import type { TransformRequest } from '../src/shared/mutations'
 
 export const SYSTEM_PROMPT = `You are the transformation and drawing engine of Reif, an infinite-canvas knowledge tool.
@@ -17,8 +18,9 @@ Drawing toolbox (kind):
   that fall within the frame rectangle.
 - text: free labels/titles (size "l"/"xl" for titles). note: sticky notes for ideas.
 - connect: arrows between nodes (ids or refs), optional label — prefer this over drawing arrows.
-Composition: build diagrams from geo + connect; keep a clear grid, consistent sizes and 40-80px gaps;
-avoid overlapping labels; use color to encode meaning, not decoration; default to ~1200x800 max.
+Composition: build diagrams from geo + connect; keep a clear grid, consistent sizes; avoid overlapping
+labels; use roles to encode meaning (e.g. primary for main ideas, accent for the key insight, muted for
+side notes, container for frames, title/heading for labels); default to ~1200x800 max.
 
 Rules:
 - "delete" and "update" may reference ONLY ids present in the selection JSON.
@@ -36,6 +38,10 @@ Rules:
   Never put image URLs anywhere.
 - Never invent ids. If the instruction cannot be done, return empty arrays and explain in "summary".`
 
-export function buildUserMessage({ prompt, subgraph }: TransformRequest): string {
+export function buildSystemPrompt(designSystemId: string | undefined): string {
+  return `${SYSTEM_PROMPT}\n${describeForLLM(getDesignSystem(designSystemId))}`
+}
+
+export function buildUserMessage({ prompt, subgraph }: Pick<TransformRequest, 'prompt' | 'subgraph'>): string {
   return `Instruction:\n${prompt}\n\nSelection:\n\`\`\`json\n${JSON.stringify(subgraph)}\n\`\`\``
 }

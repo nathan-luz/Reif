@@ -11,7 +11,9 @@ import {
   type TLShapePartial,
   type TLTextShape,
 } from 'tldraw'
+import { defaultRoleFor, type DesignSystem, type StyleRole } from '../../shared/design-systems'
 import type { Point, ResolvedCreateNode } from '../../shared/mutations'
+import { allowedStyleProps, reifMeta, roleProps, type StyleProp } from '../../design-system/styling'
 import { youtubeShapePartial } from '../../shapes/youtube/create'
 import { IMAGE_SLOT_DEFAULT_SIZE, IMAGE_SLOT_SHAPE, type ImageSlotShape } from '../../shapes/image-slot/types'
 import { YOUTUBE_DEFAULT_SIZE } from '../../shapes/youtube/types'
@@ -45,6 +47,7 @@ export function footprint(c: ResolvedCreateNode): Rect {
 
 export interface Placement {
   id: TLShapeId
+  ds: DesignSystem
   /** Deslocamento do grupo (já aplicado). */
   dx: number
   /** Frame pai (id e posição de página) se o nó estiver dentro de um frame. */
@@ -58,11 +61,34 @@ function locate(page: Point, p: Placement): Point {
   return p.parent ? { x: x - p.parent.x, y: y - p.parent.y } : { x, y }
 }
 
-const style = (c: ResolvedCreateNode) => ({
-  ...(c.color ? { color: c.color } : {}),
-  ...(c.dash ? { dash: c.dash } : {}),
-  ...(c.size ? { size: c.size } : {}),
-})
+/**
+ * Estilo = papel do design system + estilos explícitos do LLM (que viram overrides,
+ * para o re-skin não desfazê-los). Retorna também o meta que marca o shape como gerado.
+ */
+export function styleFor(
+  ds: DesignSystem,
+  type: string,
+  role: StyleRole,
+  explicit: Partial<Record<StyleProp, string | undefined>> = {},
+) {
+  const allowed = allowedStyleProps(type)
+  const given = Object.entries(explicit).filter(
+    (e): e is [StyleProp, string] => e[1] !== undefined && allowed.includes(e[0] as StyleProp),
+  )
+  const overrides = given.map(([k]) => k)
+  return {
+    props: { ...roleProps(ds, role, type, overrides), ...Object.fromEntries(given) },
+    meta: reifMeta(role, overrides),
+  }
+}
+
+const styleOf = (c: ResolvedCreateNode, type: string, ds: DesignSystem) =>
+  styleFor(ds, type, c.role ?? defaultRoleFor(c.kind, c.size), {
+    color: c.color,
+    fill: c.fill,
+    dash: c.dash,
+    size: c.size,
+  })
 
 const relPoints = (points: Point[]) => {
   const o = points[0] ?? { x: 0, y: 0 }
@@ -73,48 +99,55 @@ export function buildCreate(c: ResolvedCreateNode, p: Placement): TLShapePartial
   const base = { id: p.id, ...(p.parent ? { parentId: p.parent.id } : {}) }
   const pos = locate(c, p)
   const richText = toRichText(c.text)
-  const color = c.color ? { color: c.color } : {}
 
   switch (c.kind) {
-    case 'note':
-      return { ...base, type: 'note', ...pos, props: { richText, ...color, ...(c.size ? { size: c.size } : {}) } } satisfies TLShapePartial<TLNoteShape>
-    case 'text':
-      return { ...base, type: 'text', ...pos, props: { richText, autoSize: true, ...color, ...(c.size ? { size: c.size } : {}) } } satisfies TLShapePartial<TLTextShape>
+    case 'note': {
+      const { props, meta } = styleOf(c, 'note', p.ds)
+      return { ...base, type: 'note', ...pos, meta, props: { richText, ...props } } as TLShapePartial<TLNoteShape>
+    }
+    case 'text': {
+      const { props, meta } = styleOf(c, 'text', p.ds)
+      return { ...base, type: 'text', ...pos, meta, props: { richText, autoSize: true, ...props } } as TLShapePartial<TLTextShape>
+    }
     case 'geo': {
       const { w, h } = footprint(c)
+      const { props, meta } = styleOf(c, 'geo', p.ds)
       return {
-        ...base, type: 'geo', ...pos,
-        props: { geo: c.geo ?? 'rectangle', w, h, richText, ...style(c), ...(c.fill ? { fill: c.fill } : {}) },
-      } satisfies TLShapePartial<TLGeoShape>
+        ...base, type: 'geo', ...pos, meta,
+        props: { geo: c.geo ?? 'rectangle', w, h, richText, ...props },
+      } as TLShapePartial<TLGeoShape>
     }
     case 'frame': {
       const { w, h } = footprint(c)
-      return { ...base, type: 'frame', ...pos, props: { w, h, name: c.text, ...color } } satisfies TLShapePartial<TLFrameShape>
+      const { props, meta } = styleOf(c, 'frame', p.ds)
+      return { ...base, type: 'frame', ...pos, meta, props: { w, h, name: c.text, ...props } } as TLShapePartial<TLFrameShape>
     }
     case 'line': {
       const { origin, rel } = relPoints(c.points)
       const keys = getIndices(rel.length)
       const points = Object.fromEntries(keys.map((k, i) => [k, { id: k, index: k, ...rel[i]! }]))
+      const { props, meta } = styleOf(c, 'line', p.ds)
       return {
-        ...base, type: 'line', ...locate(origin, p),
-        props: { points, spline: c.curved ? 'cubic' : 'line', ...style(c) },
-      } satisfies TLShapePartial<TLLineShape>
+        ...base, type: 'line', ...locate(origin, p), meta,
+        props: { points, spline: c.curved ? 'cubic' : 'line', ...props },
+      } as TLShapePartial<TLLineShape>
     }
     case 'draw': {
       const { origin, rel } = relPoints(c.points)
       const first = rel[0]
       const last = rel[rel.length - 1]
       const isClosed = !!first && !!last && rel.length > 2 && Math.hypot(first.x - last.x, first.y - last.y) < 8
+      const { props, meta } = styleOf(c, 'draw', p.ds)
+      if (!isClosed) delete (props as Record<string, unknown>)['fill']
       return {
-        ...base, type: 'draw', ...locate(origin, p),
+        ...base, type: 'draw', ...locate(origin, p), meta,
         props: {
           segments: compressLegacySegments([{ type: 'free', points: rel.map((q) => ({ ...q, z: 0.5 })) }]),
           isComplete: true,
           isClosed,
-          ...style(c),
-          ...(c.fill && isClosed ? { fill: c.fill } : {}),
+          ...props,
         },
-      } satisfies TLShapePartial<TLDrawShape>
+      } as TLShapePartial<TLDrawShape>
     }
     case 'youtube':
       return c.youtube ? youtubeShapePartial(p.id, { ...c.youtube, start: 0 }, pos) : null

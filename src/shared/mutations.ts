@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { STYLE_ROLES } from './design-systems'
 import { SubgraphPayloadSchema, type SubgraphPayload } from './subgraph'
 
 // ── Estilos (espelham os enums do tldraw v5) ──────────────────────────────
@@ -46,6 +47,10 @@ export const CreateNodeSchema = z.object({
     .array(PointSchema)
     .describe('OBRIGATÓRIO para line/draw: pontos em coordenadas de página (line: 2-60, draw: 8-60). Vazio [] para os demais.'),
   curved: z.boolean().optional().describe('Só para line: suaviza a polilinha.'),
+  role: z
+    .enum(STYLE_ROLES)
+    .optional()
+    .describe('Papel semântico; o design system ativo define cor/fill/dash/size/fonte a partir dele.'),
   color: ColorSchema.optional(),
   fill: z.enum(FILLS).optional(),
   dash: z.enum(DASHES).optional(),
@@ -95,6 +100,7 @@ export const TransformRequestSchema = z.object({
   provider: ProviderSchema,
   prompt: z.string().trim().min(1).max(4000),
   subgraph: SubgraphPayloadSchema,
+  designSystem: z.string().max(40).optional(),
 })
 export type TransformRequest = z.infer<typeof TransformRequestSchema>
 

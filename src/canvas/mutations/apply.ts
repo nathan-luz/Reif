@@ -8,9 +8,11 @@ import {
   type TLShapeId,
   type TLShapePartial,
 } from 'tldraw'
+import type { DesignSystem } from '../../shared/design-systems'
 import type { MutationPlan, Update } from '../../shared/mutations'
+import { withSystemWrite } from '../../design-system/styling'
 import type { SubgraphPayload } from '../../shared/subgraph'
-import { buildCreate, footprint, type Placement } from './build'
+import { buildCreate, footprint, styleFor, type Placement } from './build'
 import { groupOffset, type Rect } from './placement'
 
 const asId = (id: string) => id as TLShapeId
@@ -29,12 +31,13 @@ function buildUpdate(shape: TLShape, u: Update): TLShapePartial {
   } as TLShapePartial
 }
 
-function connect(editor: Editor, from: TLShapeId, to: TLShapeId, label?: string) {
+function connect(editor: Editor, ds: DesignSystem, from: TLShapeId, to: TLShapeId, label?: string) {
   const id = createShapeId()
-  editor.createShape<TLArrowShape>({
-    id, type: 'arrow', x: 0, y: 0,
-    props: { start: { x: 0, y: 0 }, end: { x: 1, y: 1 }, ...(label ? { richText: toRichText(label) } : {}) },
-  })
+  const { props, meta } = styleFor(ds, 'arrow', 'connector')
+  editor.createShape({
+    id, type: 'arrow', x: 0, y: 0, meta,
+    props: { start: { x: 0, y: 0 }, end: { x: 1, y: 1 }, ...props, ...(label ? { richText: toRichText(label) } : {}) },
+  } as TLShapePartial<TLArrowShape>)
   const anchor = { normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false }
   editor.createBindings<TLArrowBinding>([
     { type: 'arrow', fromId: id, toId: from, props: { terminal: 'start', ...anchor } },
@@ -60,12 +63,17 @@ export interface ApplyResult {
 }
 
 /** Aplica o plano numa única transação de histórico (1 Ctrl+Z desfaz tudo). */
-export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: SubgraphPayload): ApplyResult {
+export function applyPlan(
+  editor: Editor,
+  plan: MutationPlan,
+  subgraph: SubgraphPayload,
+  ds: DesignSystem,
+): ApplyResult {
   const created: TLShapeId[] = []
   const imageSlots: TLShapeId[] = []
   editor.markHistoryStoppingPoint('reif:ai-transform')
 
-  editor.run(() => {
+  withSystemWrite(() => editor.run(() => {
     // DELETE (+ setas do sub-grafo que ficariam soltas)
     const toDelete = new Set(plan.delete)
     for (const e of subgraph.edges) {
@@ -89,7 +97,7 @@ export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: Subgraph
     for (const c of ordered) {
       const id = createShapeId()
       const parent = c.frame ? frames.get(c.frame) : undefined
-      const partial = buildCreate(c, { id, dx, ...(parent ? { parent } : {}) })
+      const partial = buildCreate(c, { id, ds, dx, ...(parent ? { parent } : {}) })
       if (!partial) continue
       editor.createShape(partial)
       refs.set(c.ref, id)
@@ -103,11 +111,11 @@ export function applyPlan(editor: Editor, plan: MutationPlan, subgraph: Subgraph
     for (const c of plan.connect) {
       const from = resolve(c.from)
       const to = resolve(c.to)
-      if (from && to) created.push(connect(editor, from, to, c.label))
+      if (from && to) created.push(connect(editor, ds, from, to, c.label))
     }
 
     if (created.length) editor.select(...created)
-  })
+  }))
 
   return { created, imageSlots }
 }
