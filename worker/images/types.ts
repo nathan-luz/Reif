@@ -4,12 +4,22 @@ export interface ImageEnv {
   UNSPLASH_ACCESS_KEY?: string
   PIXABAY_API_KEY?: string
   PEXELS_API_KEY?: string
+  GEMINI_API_KEY?: string
+}
+
+export interface ImageQuery {
+  /** Como o usuário digitou. */
+  original: string
+  /** Tradução para inglês (igual ao original se já for inglês). */
+  english: string
+  /** ISO 639-1 do original quando difere do inglês (ex.: 'pt'). */
+  lang?: string
 }
 
 export interface ImageProvider {
   readonly source: ImageSource
   isConfigured(env: ImageEnv): boolean
-  search(query: string, env: ImageEnv, perPage: number, signal: AbortSignal): Promise<ImageHit[]>
+  search(query: ImageQuery, env: ImageEnv, perPage: number, signal: AbortSignal): Promise<ImageHit[]>
 }
 
 /** Cota esgotada / rate limit: o agregador pula a fonte até `retryAfterMs`. */

@@ -7,8 +7,9 @@ const stripHtml = (s: string) =>
   s
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^Title:\s*/i, '')
     .trim()
+    .replace(/^Title:\s*/i, '')
+    .replace(/\s+Physical description:.*$/i, '')
 
 // ── Unsplash ──────────────────────────────────────────────────────────────
 interface UnsplashRes {
@@ -28,7 +29,8 @@ export const unsplash: ImageProvider = {
   source: 'unsplash',
   isConfigured: (env) => Boolean(env.UNSPLASH_ACCESS_KEY),
   async search(q, env, perPage, signal) {
-    const p = new URLSearchParams({ query: q, per_page: String(perPage), content_filter: 'high' })
+    const p = new URLSearchParams({ query: q.original, per_page: String(perPage), content_filter: 'high' })
+    if (q.lang) p.set('lang', q.lang)
     const data = await getJson<UnsplashRes>('unsplash', `https://api.unsplash.com/search/photos?${p}`, {
       headers: { Authorization: `Client-ID ${env.UNSPLASH_ACCESS_KEY}`, 'Accept-Version': 'v1' },
       signal,
@@ -41,7 +43,7 @@ export const unsplash: ImageProvider = {
         url: r.urls.regular,
         width: r.width,
         height: r.height,
-        title: r.alt_description ?? r.description ?? q,
+        title: r.alt_description ?? r.description ?? q.original,
         author: r.user.name,
         authorUrl: withUtm(r.user.links.html),
         pageUrl: withUtm(r.links.html),
@@ -74,8 +76,9 @@ export const pixabay: ImageProvider = {
   async search(q, env, perPage, signal) {
     const p = new URLSearchParams({
       key: env.PIXABAY_API_KEY ?? '',
-      q: q.slice(0, 100),
+      q: q.original.slice(0, 100),
       image_type: 'all',
+      ...(q.lang ? { lang: q.lang } : {}),
       safesearch: 'true',
       per_page: String(Math.max(3, perPage)),
     })
@@ -117,7 +120,8 @@ export const pexels: ImageProvider = {
   source: 'pexels',
   isConfigured: (env) => Boolean(env.PEXELS_API_KEY),
   async search(q, env, perPage, signal) {
-    const p = new URLSearchParams({ query: q, per_page: String(perPage) })
+    const p = new URLSearchParams({ query: q.original, per_page: String(perPage) })
+    if (q.lang === 'pt') p.set('locale', 'pt-BR')
     const data = await getJson<PexelsRes>('pexels', `https://api.pexels.com/v1/search?${p}`, {
       headers: { Authorization: env.PEXELS_API_KEY ?? '' },
       signal,
@@ -130,7 +134,7 @@ export const pexels: ImageProvider = {
         url: r.src.large2x,
         width: r.width,
         height: r.height,
-        title: r.alt || q,
+        title: r.alt || q.original,
         author: r.photographer,
         authorUrl: r.photographer_url,
         pageUrl: r.url,
@@ -173,7 +177,7 @@ export const wikimedia: ImageProvider = {
       action: 'query',
       format: 'json',
       generator: 'search',
-      gsrsearch: `${q} filetype:bitmap|drawing`,
+      gsrsearch: `${q.english} filetype:bitmap|drawing`,
       gsrnamespace: '6',
       gsrlimit: String(perPage),
       prop: 'imageinfo',
@@ -233,7 +237,7 @@ export const openverse: ImageProvider = {
   source: 'openverse',
   isConfigured: () => true,
   async search(q, _env, perPage, signal) {
-    const p = new URLSearchParams({ q, page_size: String(perPage), mature: 'false' })
+    const p = new URLSearchParams({ q: q.english, page_size: String(perPage), mature: 'false' })
     const data = await getJson<OpenverseRes>('openverse', `https://api.openverse.org/v1/images/?${p}`, {
       headers: { 'User-Agent': USER_AGENT },
       signal,
@@ -246,7 +250,7 @@ export const openverse: ImageProvider = {
         url: r.url,
         width: r.width ?? 800,
         height: r.height ?? 600,
-        title: r.title ?? q,
+        title: r.title ?? q.english,
         ...(r.creator ? { author: r.creator } : {}),
         ...(r.creator_url ? { authorUrl: r.creator_url } : {}),
         pageUrl: r.foreign_landing_url,

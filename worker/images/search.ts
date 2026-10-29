@@ -1,6 +1,7 @@
 import type { ImageHit, ImageSearchResponse, ImageSource, SourceStatus } from '../../src/shared/images'
 import { IMAGE_PROVIDERS } from './providers'
-import { QuotaError, type ImageEnv } from './types'
+import { toEnglishQuery } from './translate'
+import { QuotaError, type ImageEnv, type ImageQuery } from './types'
 
 const PER_SOURCE = 12
 const TIMEOUT_MS = 8_000
@@ -30,7 +31,10 @@ export function interleave(lists: ImageHit[][]): ImageHit[] {
   return out
 }
 
-export async function searchImages(query: string, env: ImageEnv): Promise<ImageSearchResponse> {
+export async function searchImages(raw: string, env: ImageEnv): Promise<ImageSearchResponse> {
+  const english = await toEnglishQuery(raw, env.GEMINI_API_KEY)
+  const differs = english.toLowerCase() !== raw.toLowerCase()
+  const query: ImageQuery = { original: raw, english, ...(differs ? { lang: 'pt' } : {}) }
   const now = Date.now()
   const settled = await Promise.all(
     IMAGE_PROVIDERS.map(async (p): Promise<{ hits: ImageHit[]; status: SourceStatus }> => {
