@@ -31,11 +31,11 @@ function buildUpdate(shape: TLShape, u: Update): TLShapePartial {
   } as TLShapePartial
 }
 
-function connect(editor: Editor, ds: DesignSystem, from: TLShapeId, to: TLShapeId, label?: string) {
+export function connect(editor: Editor, ds: DesignSystem, from: TLShapeId, to: TLShapeId, label?: string) {
   const id = createShapeId()
   const { props, meta } = styleFor(ds, 'arrow', 'connector')
   editor.createShape({
-    id, type: 'arrow', x: 0, y: 0, meta,
+    id, type: 'arrow', x: 0, y: 0, meta, parentId: editor.getCurrentPageId(),
     props: { start: { x: 0, y: 0 }, end: { x: 1, y: 1 }, ...props, ...(label ? { richText: toRichText(label) } : {}) },
   } as TLShapePartial<TLArrowShape>)
   const anchor = { normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false }
@@ -46,7 +46,7 @@ function connect(editor: Editor, ds: DesignSystem, from: TLShapeId, to: TLShapeI
   return id
 }
 
-function occupiedRects(editor: Editor): Rect[] {
+export function occupiedRects(editor: Editor): Rect[] {
   return editor
     .getCurrentPageShapes()
     .filter((s) => s.type !== 'arrow' && !s.parentId.startsWith('shape:'))
@@ -97,7 +97,7 @@ export function applyPlan(
     for (const c of ordered) {
       const id = createShapeId()
       const parent = c.frame ? frames.get(c.frame) : undefined
-      const partial = buildCreate(c, { id, ds, dx, ...(parent ? { parent } : {}) })
+      const partial = buildCreate(c, { id, ds, dx, pageId: editor.getCurrentPageId(), ...(parent ? { parent } : {}) })
       if (!partial) continue
       editor.createShape(partial)
       refs.set(c.ref, id)

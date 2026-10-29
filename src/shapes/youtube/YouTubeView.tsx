@@ -1,5 +1,6 @@
 import { memo, useState } from 'react'
-import { useEditor, useValue } from 'tldraw'
+import { stopEventPropagation, useEditor, useValue } from 'tldraw'
+import { runVideoAction, videoJobs } from '../../canvas/video/actions'
 import type { YouTubeShape } from './types'
 import { embedUrl, thumbnailUrl } from './youtube-url'
 
@@ -33,6 +34,7 @@ export const YouTubeView = memo(function YouTubeView({ shape }: { shape: YouTube
   else if (!isEditing && !isFocused && activated) setActivated(false)
 
   const live = Boolean(videoId) && zoomOk && (isEditing || (activated && isFocused))
+  const job = useValue('yt:job', () => videoJobs.get()[id], [id])
 
   if (live) {
     return (
@@ -68,6 +70,36 @@ export const YouTubeView = memo(function YouTubeView({ shape }: { shape: YouTube
           <path d="M45 24 27 14v20" fill="#fff" />
         </svg>
       </div>
+      {videoId && (isFocused || job) && (
+        <div className="absolute top-2 right-2 flex gap-1.5" style={{ pointerEvents: 'all' }}>
+          {job?.status === 'running' ? (
+            <span className="rounded-md bg-black/75 px-2 py-1 text-xs text-white">
+              {job.kind === 'transcript' ? 'Transcrevendo…' : 'Resumindo…'}
+            </span>
+          ) : (
+            (['transcript', 'summary'] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                onPointerDown={stopEventPropagation}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void runVideoAction(editor, shape, kind)
+                }}
+                className="rounded-md bg-black/75 px-2 py-1 text-xs font-medium text-white hover:bg-black"
+                data-testid={`yt-${kind}`}
+              >
+                {kind === 'transcript' ? '📝 Transcrever' : '✨ Resumo'}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+      {job?.status === 'error' && (
+        <div className="absolute inset-x-2 top-12 rounded-md bg-red-600/90 px-2 py-1 text-xs text-white" title={job.message}>
+          <span className="line-clamp-2">{job.message}</span>
+        </div>
+      )}
       {title && (
         <div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-3 pt-6 pb-2 text-sm text-white">
           {title}

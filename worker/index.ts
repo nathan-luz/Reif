@@ -16,6 +16,8 @@ import { proxyImage, trackUnsplashDownload } from './images/proxy'
 import { searchImages } from './images/search'
 import { ImageSourceSchema } from '../src/shared/images'
 import { resolvePlan } from './resolvers'
+import { summarizeVideo, transcribeVideo } from './video'
+import { VideoRequestSchema } from '../src/shared/video'
 import { fetchVideoTitle } from './resolvers/youtube'
 
 type Env = {
@@ -97,6 +99,23 @@ app.post('/api/images/unsplash/track', async (c) => {
     c.executionCtx.waitUntil(trackUnsplashDownload(body.downloadLocation, c.env.UNSPLASH_ACCESS_KEY).catch(() => {}))
   }
   return c.body(null, 204)
+})
+
+app.post('/api/youtube/:action{transcript|summary}', async (c) => {
+  const parsed = VideoRequestSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ error: 'payload inválido', issues: parsed.error.issues }, 400)
+  if (!c.env.GEMINI_API_KEY) return c.json({ error: 'GEMINI_API_KEY não configurada' }, 500)
+  try {
+    const result =
+      c.req.param('action') === 'transcript'
+        ? await transcribeVideo(c.env.GEMINI_API_KEY, parsed.data)
+        : await summarizeVideo(c.env.GEMINI_API_KEY, parsed.data)
+    return c.json(result)
+  } catch (err) {
+    console.error(err)
+    const msg = err instanceof Error ? err.message : String(err)
+    return c.json({ error: msg.slice(0, 500) }, 502)
+  }
 })
 
 export default app

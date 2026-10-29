@@ -7,6 +7,7 @@ import {
   type TLGeoShape,
   type TLLineShape,
   type TLNoteShape,
+  type TLParentId,
   type TLShapeId,
   type TLShapePartial,
   type TLTextShape,
@@ -48,6 +49,8 @@ export function footprint(c: ResolvedCreateNode): Rect {
 export interface Placement {
   id: TLShapeId
   ds: DesignSystem
+  /** Página atual: parent explícito evita que o tldraw "capture" o shape num frame existente. */
+  pageId: TLParentId
   /** Deslocamento do grupo (já aplicado). */
   dx: number
   /** Frame pai (id e posição de página) se o nó estiver dentro de um frame. */
@@ -96,7 +99,7 @@ const relPoints = (points: Point[]) => {
 }
 
 export function buildCreate(c: ResolvedCreateNode, p: Placement): TLShapePartial | null {
-  const base = { id: p.id, ...(p.parent ? { parentId: p.parent.id } : {}) }
+  const base = { id: p.id, parentId: p.parent ? p.parent.id : p.pageId }
   const pos = locate(c, p)
   const richText = toRichText(c.text)
 
@@ -150,7 +153,7 @@ export function buildCreate(c: ResolvedCreateNode, p: Placement): TLShapePartial
       } as TLShapePartial<TLDrawShape>
     }
     case 'youtube':
-      return c.youtube ? youtubeShapePartial(p.id, { ...c.youtube, start: 0 }, pos) : null
+      return c.youtube ? { ...youtubeShapePartial(p.id, { ...c.youtube, start: 0 }, pos), parentId: base.parentId } : null
     case 'image': {
       const { w, h } = footprint(c)
       return {
