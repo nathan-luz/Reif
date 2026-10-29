@@ -94,7 +94,7 @@ function PickerDialog({ state }: { state: ImagePickerState }) {
 
   return (
     <div
-      className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center bg-black/30"
+      className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/30"
       onPointerDown={(e) => {
         stopEventPropagation(e)
         if (e.target === e.currentTarget) closeImagePicker()

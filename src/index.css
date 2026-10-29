@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/* Tipografia do painel leitor (sem plugin de typography). */
+.reif-prose { font-size: 15px; line-height: 1.65; max-width: 72ch; margin: 0 auto; overflow-wrap: anywhere; }
+.reif-prose h1, .reif-prose h2, .reif-prose h3, .reif-prose h4 { font-weight: 650; line-height: 1.25; margin: 1.4em 0 0.5em; }
+.reif-prose h1 { font-size: 1.7em; } .reif-prose h2 { font-size: 1.35em; } .reif-prose h3 { font-size: 1.15em; }
+.reif-prose p, .reif-prose ul, .reif-prose ol, .reif-prose blockquote, .reif-prose pre, .reif-prose table { margin: 0.7em 0; }
+.reif-prose ul { list-style: disc; padding-left: 1.4em; } .reif-prose ol { list-style: decimal; padding-left: 1.4em; }
+.reif-prose a { color: var(--tl-color-selected); text-decoration: underline; }
+.reif-prose blockquote { border-left: 3px solid var(--tl-color-muted-2); padding-left: 1em; opacity: 0.85; }
+.reif-prose code { font-family: ui-monospace, monospace; font-size: 0.9em; background: var(--tl-color-muted-2); padding: 0.1em 0.3em; border-radius: 4px; }
+.reif-prose pre { background: var(--tl-color-muted-2); padding: 0.8em 1em; border-radius: 8px; overflow-x: auto; }
+.reif-prose pre code { background: none; padding: 0; }
+.reif-prose img { max-width: 100%; height: auto; border-radius: 6px; }
+.reif-prose table { border-collapse: collapse; display: block; overflow-x: auto; }
+.reif-prose th, .reif-prose td { border: 1px solid var(--tl-color-muted-2); padding: 0.3em 0.6em; text-align: left; }
+.reif-prose hr { border: 0; border-top: 1px solid var(--tl-color-muted-2); margin: 1.5em 0; }
+
+/* Camada das sobreposições do Reif: acima dos painéis/menus do tldraw, abaixo de diálogos. */
+.reif-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 350; }

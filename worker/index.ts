@@ -12,6 +12,7 @@ import { buildSystemPrompt, buildUserMessage } from './prompt'
 import { createClaude } from './providers/claude'
 import { createGemini } from './providers/gemini'
 import { ProviderError, type JsonSchema, type LLMProvider } from './providers/types'
+import { fetchFile, headFile } from './files'
 import { proxyImage, trackUnsplashDownload } from './images/proxy'
 import { searchImages } from './images/search'
 import { ImageSourceSchema } from '../src/shared/images'
@@ -90,6 +91,9 @@ app.get('/api/images/search', async (c) => {
   c.header('cache-control', 'private, max-age=300')
   return c.json(await searchImages(q.slice(0, 200), c.env, source.success ? source.data : undefined))
 })
+
+app.get('/api/files/head', (c) => headFile(c.req.query('url')))
+app.get('/api/files/fetch', (c) => fetchFile(c.req.query('url')))
 
 app.get('/api/images/proxy', (c) => proxyImage(c.req.query('url') ?? ''))
 

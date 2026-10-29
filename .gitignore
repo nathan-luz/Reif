@@ -29,3 +29,6 @@ dist-ssr
 # testes
 test-results
 playwright-report
+
+# temporários
+*.tmp.mjs

@@ -1,7 +1,10 @@
 import { useCallback } from 'react'
 import { useEditor } from 'tldraw'
 import { requestTransform } from './ai/client'
+import { ReaderPanel } from '../files/reader/ReaderPanel'
 import { ImagePicker } from './image-picker/ImagePicker'
+import { Notices } from './notify/Notices'
+import { Overlay } from './Overlay'
 import { openImagePicker } from './image-picker/state'
 import { applyPlan } from './mutations/apply'
 import { IMAGE_SLOT_SHAPE } from '../shapes/image-slot/types'
@@ -27,7 +30,11 @@ export function InFrontOfTheCanvas() {
   return (
     <>
       <AIPromptBar onSubmit={handlePrompt} />
-      <ImagePicker />
+      <Overlay>
+        <ImagePicker />
+        <ReaderPanel />
+        <Notices />
+      </Overlay>
     </>
   )
 }
