@@ -177,7 +177,7 @@ export const wikimedia: ImageProvider = {
       action: 'query',
       format: 'json',
       generator: 'search',
-      gsrsearch: `${q.english} filetype:bitmap|drawing`,
+      gsrsearch: `${await q.english()} filetype:bitmap|drawing`,
       gsrnamespace: '6',
       gsrlimit: String(perPage),
       prop: 'imageinfo',
@@ -237,7 +237,8 @@ export const openverse: ImageProvider = {
   source: 'openverse',
   isConfigured: () => true,
   async search(q, _env, perPage, signal) {
-    const p = new URLSearchParams({ q: q.english, page_size: String(perPage), mature: 'false' })
+    const english = await q.english()
+    const p = new URLSearchParams({ q: english, page_size: String(perPage), mature: 'false' })
     const data = await getJson<OpenverseRes>('openverse', `https://api.openverse.org/v1/images/?${p}`, {
       headers: { 'User-Agent': USER_AGENT },
       signal,
@@ -250,7 +251,7 @@ export const openverse: ImageProvider = {
         url: r.url,
         width: r.width ?? 800,
         height: r.height ?? 600,
-        title: r.title ?? q.english,
+        title: r.title ?? english,
         ...(r.creator ? { author: r.creator } : {}),
         ...(r.creator_url ? { authorUrl: r.creator_url } : {}),
         pageUrl: r.foreign_landing_url,

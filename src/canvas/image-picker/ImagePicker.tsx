@@ -1,7 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { stopEventPropagation, useEditor, useValue } from 'tldraw'
-import type { ImageHit, ImageSearchResponse, SourceStatus } from '../../shared/images'
-import { searchImages } from './api'
+import { IMAGE_SOURCES, interleave, type ImageHit, type ImageSource, type SourceStatus } from '../../shared/images'
+import { searchAllSources, type SourceResult } from './api'
 import { insertImage } from './insert'
 import { closeImagePicker, imagePicker, type ImagePickerState } from './state'
 
@@ -37,18 +37,14 @@ export const ImagePicker = memo(function ImagePicker() {
   return <PickerDialog key={`${state.slotId ?? 'free'}:${state.query}`} state={state} />
 })
 
-type Load =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'done'; data: ImageSearchResponse }
-  | { status: 'error'; message: string }
+type Results = Partial<Record<ImageSource, SourceResult>>
 
 function PickerDialog({ state }: { state: ImagePickerState }) {
   const editor = useEditor()
   const inputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState(state.query)
   const [query, setQuery] = useState(state.query)
-  const [load, setLoad] = useState<Load>(state.query.trim() ? { status: 'loading' } : { status: 'idle' })
+  const [results, setResults] = useState<Results>({})
   const [inserting, setInserting] = useState<string | null>(null)
   const [insertError, setInsertError] = useState<string | null>(null)
 
@@ -59,20 +55,22 @@ function PickerDialog({ state }: { state: ImagePickerState }) {
   useEffect(() => {
     if (!query.trim()) return
     const ctrl = new AbortController()
-    searchImages(query, ctrl.signal)
-      .then((data) => setLoad({ status: 'done', data }))
-      .catch((err: unknown) => {
-        if (!ctrl.signal.aborted) setLoad({ status: 'error', message: err instanceof Error ? err.message : String(err) })
-      })
+    void searchAllSources(query, ctrl.signal, (source, result) =>
+      setResults((prev) => ({ ...prev, [source]: result })),
+    )
     return () => ctrl.abort()
   }, [query])
+
+  // Ordem fixa das fontes → intercalação estável enquanto os resultados chegam.
+  const hits = useMemo(() => interleave(IMAGE_SOURCES.map((s) => results[s]?.hits ?? [])), [results])
+  const pending = query.trim() ? IMAGE_SOURCES.filter((s) => !results[s]) : []
 
   const onSearch = useCallback(
     (e: FormEvent) => {
       e.preventDefault()
       const q = draft.trim()
       if (!q || q === query) return
-      setLoad({ status: 'loading' })
+      setResults({})
       setQuery(q)
     },
     [draft, query],
@@ -131,28 +129,35 @@ function PickerDialog({ state }: { state: ImagePickerState }) {
           </button>
         </form>
 
-        {load.status === 'done' && (
+        {query.trim() && (
           <div className="flex flex-wrap gap-1.5 border-b border-black/5 px-3 py-2">
-            {load.data.sources.map((s) => (
-              <span key={s.source} className={`rounded-full px-2 py-0.5 text-[11px] ${STATUS_STYLE[s.status]}`}>
-                {SOURCE_LABEL[s.source]}
-                {s.status === 'ok' ? ` · ${s.count}` : ` · ${STATUS_HINT[s.status]}`}
-              </span>
-            ))}
+            {IMAGE_SOURCES.map((source) => {
+              const s = results[source]?.status
+              if (!s)
+                return (
+                  <span key={source} className="animate-pulse rounded-full bg-black/5 px-2 py-0.5 text-[11px] text-black/40">
+                    {SOURCE_LABEL[source]} · …
+                  </span>
+                )
+              return (
+                <span key={source} className={`rounded-full px-2 py-0.5 text-[11px] ${STATUS_STYLE[s.status]}`}>
+                  {SOURCE_LABEL[source]}
+                  {s.status === 'ok' ? ` · ${s.count}` : ` · ${STATUS_HINT[s.status]}`}
+                </span>
+              )
+            })}
           </div>
         )}
         {insertError && <p className="bg-red-50 px-3 py-1.5 text-xs text-red-700">{insertError}</p>}
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {load.status === 'loading' && <p className="text-sm text-black/50">Buscando em 5 fontes…</p>}
-          {load.status === 'error' && <p className="text-sm text-red-700">{load.message}</p>}
-          {load.status === 'idle' && <p className="text-sm text-black/50">Digite o que procura.</p>}
-          {load.status === 'done' && load.data.results.length === 0 && (
-            <p className="text-sm text-black/50">Nenhuma imagem encontrada.</p>
+          {!query.trim() && <p className="text-sm text-black/50">Digite o que procura.</p>}
+          {query.trim() && hits.length === 0 && (
+            <p className="text-sm text-black/50">{pending.length ? 'Buscando…' : 'Nenhuma imagem encontrada.'}</p>
           )}
-          {load.status === 'done' && (
+          {hits.length > 0 && (
             <div className="columns-2 gap-3 sm:columns-3 lg:columns-4">
-              {load.data.results.map((hit) => (
+              {hits.map((hit) => (
                 <ImageTile key={hit.id} hit={hit} busy={inserting === hit.id} disabled={inserting !== null} onPick={onPick} />
               ))}
             </div>

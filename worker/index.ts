@@ -14,6 +14,7 @@ import { createGemini } from './providers/gemini'
 import { ProviderError, type JsonSchema, type LLMProvider } from './providers/types'
 import { proxyImage, trackUnsplashDownload } from './images/proxy'
 import { searchImages } from './images/search'
+import { ImageSourceSchema } from '../src/shared/images'
 import { resolvePlan } from './resolvers'
 import { fetchVideoTitle } from './resolvers/youtube'
 
@@ -83,8 +84,9 @@ app.get('/api/youtube/meta/:id', async (c) => {
 app.get('/api/images/search', async (c) => {
   const q = c.req.query('q')?.trim()
   if (!q) return c.json({ error: 'q obrigatório' }, 400)
+  const source = ImageSourceSchema.safeParse(c.req.query('source'))
   c.header('cache-control', 'private, max-age=300')
-  return c.json(await searchImages(q.slice(0, 200), c.env))
+  return c.json(await searchImages(q.slice(0, 200), c.env, source.success ? source.data : undefined))
 })
 
 app.get('/api/images/proxy', (c) => proxyImage(c.req.query('url') ?? ''))

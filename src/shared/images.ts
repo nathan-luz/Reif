@@ -36,3 +36,22 @@ export const ImageSearchResponseSchema = z.object({
   sources: z.array(SourceStatusSchema),
 })
 export type ImageSearchResponse = z.infer<typeof ImageSearchResponseSchema>
+
+/** Intercala as listas (1º de cada fonte, 2º de cada fonte...) e remove duplicatas (URL ou título+tamanho). */
+export function interleave(lists: readonly ImageHit[][]): ImageHit[] {
+  const out: ImageHit[] = []
+  const seen = new Set<string>()
+  const max = Math.max(0, ...lists.map((l) => l.length))
+  for (let i = 0; i < max; i++) {
+    for (const list of lists) {
+      const hit = list[i]
+      if (!hit) continue
+      const fingerprint = `${hit.source}|${hit.title.toLowerCase()}|${hit.width}x${hit.height}`
+      if (seen.has(hit.url) || seen.has(fingerprint)) continue
+      seen.add(hit.url)
+      seen.add(fingerprint)
+      out.push(hit)
+    }
+  }
+  return out
+}
