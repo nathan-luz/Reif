@@ -539,20 +539,29 @@ export function computeLayout(input: LayoutInput): LayoutOutput {
     case 'grid':
       grid(ctx, nonFrames.filter((n) => !n.frame), input.columns)
       break
+    case 'sheet':
+      sheet(ctx, body, input.root, input.columns)
+      break
+    case 'labeled': {
+      const root = pickRoot(input, nonFrames)
+      if (root) labeled(ctx, root, nonFrames, input.edges)
+      break
+    }
     case 'free':
       break
   }
-  wrapFrames(ctx, body)
-  placeLeftovers(ctx, titles, body)
+  if (type !== 'sheet') wrapFrames(ctx, body)
+  placeLeftovers(ctx, titles, body, type === 'sheet' || type === 'labeled')
   return { boxes: ctx.boxes, resized: ctx.resized, edgeVia: ctx.edgeVia, shortEdges: ctx.shortEdges, ...(ctx.spine ? { spine: ctx.spine } : {}) }
 }
 
 /** Títulos centrados acima; nós não alcançados pelo layout numa faixa abaixo. */
-function placeLeftovers(ctx: Ctx, titles: LNode[], body: LNode[]) {
+function placeLeftovers(ctx: Ctx, titles: LNode[], body: LNode[], centered = false) {
   const { gap } = ctx
   const placed = unionRect([...ctx.boxes.values()]) ?? { x: 0, y: 0, w: 0, h: 0 }
   const loose = body.filter((n) => !ctx.boxes.has(n.id) && !(n.frame && ctx.boxes.has(n.frame)))
-  let x = placed.x
+  const rowW = loose.reduce((s, n) => s + n.w, 0) + gap * Math.max(0, loose.length - 1)
+  let x = centered ? placed.x + (placed.w - rowW) / 2 : placed.x
   const y = placed.h ? placed.y + placed.h + gap * 1.2 : placed.y
   for (const n of loose) {
     ctx.boxes.set(n.id, { x, y, w: n.w, h: n.h })
@@ -566,6 +575,103 @@ function placeLeftovers(ctx: Ctx, titles: LNode[], body: LNode[]) {
     ctx.boxes.set(t.id, { x: cx - t.w / 2, y: ty, w: t.w, h: t.h })
     ty -= gap * 0.3
   }
+}
+
+/** Folha de estudo: altura reservada no topo de cada seção para o cabeçalho em pílula. */
+export const SHEET_HEADER = 54
+export const SHEET_PAD = 18
+
+/**
+ * Folha de estudo (pôster de uma página): destaque central no topo da coluna do meio,
+ * seções (frames) em colunas tipo "masonry" — cada seção vai para a coluna mais baixa —
+ * com os filhos empilhados dentro, sob o cabeçalho. Rodapé centralizado (placeLeftovers).
+ */
+function sheet(ctx: Ctx, body: LNode[], rootId: string | undefined, cols?: number) {
+  const { gap } = ctx
+  const sections = body.filter((n) => n.kind === 'frame')
+  const kidsOf = (f: string) => body.filter((n) => n.frame === f && n.kind !== 'frame')
+  const heroNode =
+    body.find((n) => n.id === rootId && !n.frame && n.kind !== 'frame') ??
+    body.find((n) => !n.frame && n.kind !== 'frame' && n.role === 'accent')
+  const c = Math.max(1, Math.min(3, Math.round(cols ?? (sections.length <= 2 ? Math.max(1, sections.length) : sections.length === 4 ? 2 : 3))))
+  const inner = Math.max(240, ...sections.flatMap((f) => kidsOf(f.id).map((k) => k.w)))
+  const colW = inner + SHEET_PAD * 2
+  const colX = (i: number) => i * (colW + gap)
+  const heights = Array.from({ length: c }, () => 0)
+  const fullW = c * colW + (c - 1) * gap
+
+  if (heroNode) {
+    if (c === 3) {
+      put(ctx, heroNode.id, colX(1) + colW / 2, heroNode.h / 2)
+      heights[1] = heroNode.h + gap
+    } else {
+      put(ctx, heroNode.id, fullW / 2, heroNode.h / 2)
+      heights.fill(heroNode.h + gap)
+    }
+  }
+  const step = Math.round(gap * 0.22)
+  for (const f of sections) {
+    const col = heights.indexOf(Math.min(...heights))
+    const x = colX(col)
+    const top = heights[col]!
+    let y = top + SHEET_PAD + SHEET_HEADER
+    for (const k of kidsOf(f.id)) {
+      // Texto e cartões ocupam a largura útil; imagens e doodles ficam centrados.
+      const full = k.kind === 'text' || k.kind === 'geo'
+      const w = full ? inner : Math.min(k.w, inner)
+      if (w !== k.w) ctx.resized.add(k.id)
+      ctx.boxes.set(k.id, { x: x + SHEET_PAD + (inner - w) / 2, y, w, h: k.h })
+      y += k.h + step
+    }
+    const h = Math.max(y - step + SHEET_PAD, top + SHEET_PAD * 2 + SHEET_HEADER) - top
+    ctx.boxes.set(f.id, { x, y: top, w: colW, h })
+    ctx.resized.add(f.id)
+    heights[col] = top + h + gap
+  }
+}
+
+/**
+ * Ilustração rotulada: a raiz (ilustração) no centro; cada nó ligado a ela é um rótulo,
+ * com seus anexos (descrição) empilhados logo abaixo. Primeira metade à esquerda, segunda
+ * à direita, de cima para baixo; colunas centradas na altura da ilustração.
+ */
+function labeled(ctx: Ctx, root: string, nodes: LNode[], edges: LEdge[]) {
+  const { gap } = ctx
+  const ids = new Set(nodes.map((n) => n.id))
+  const items: string[] = []
+  for (const e of edges) {
+    const other = e.from === root ? e.to : e.to === root ? e.from : null
+    if (other && ids.has(other) && !items.includes(other)) items.push(other)
+  }
+  const attached = (id: string) =>
+    edges.flatMap((e) => (e.from === id && e.to !== root ? [e.to] : e.to === id && e.from !== root ? [e.from] : [])).filter((x) => ids.has(x) && !items.includes(x))
+  const blocks = items.map((id) => [id, ...attached(id)])
+  const blockH = (b: string[]) => b.reduce((s, id) => s + ctx.byId.get(id)!.h, 0) + 6 * (b.length - 1)
+  const hero = ctx.byId.get(root)!
+  put(ctx, root, 0, 0)
+  // Divide mantendo a ordem, equilibrando a altura das duas colunas.
+  const total = blocks.reduce((s, b) => s + blockH(b), 0)
+  let k = 0
+  let acc = 0
+  while (k < blocks.length - 1 && acc + blockH(blocks[k]!) / 2 < total / 2) acc += blockH(blocks[k++]!)
+  const left = blocks.slice(0, Math.max(1, k))
+  const right = blocks.slice(Math.max(1, k))
+  const column = (list: string[][], sign: 1 | -1) => {
+    const vgap = gap * 0.7
+    const height = list.reduce((s, b) => s + blockH(b), 0) + vgap * Math.max(0, list.length - 1)
+    let y = -height / 2
+    const edge = sign === 1 ? hero.w / 2 + gap * 1.8 : -(hero.w / 2 + gap * 1.8)
+    for (const b of list) {
+      for (const id of b) {
+        const n = ctx.byId.get(id)!
+        ctx.boxes.set(id, { x: sign === 1 ? edge : edge - n.w, y, w: n.w, h: n.h })
+        y += n.h + 6
+      }
+      y += vgap - 6
+    }
+  }
+  column(left, -1)
+  column(right, 1)
 }
 
 /** Estilo padrão das ligações por tipo de diagrama (o plano pode sobrescrever as pontas). */

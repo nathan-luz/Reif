@@ -173,3 +173,43 @@ describe('mindmap com lados fixos (regeração)', () => {
     expectNoOverlaps(b)
   })
 })
+
+describe('sheet (folha de estudo)', () => {
+  it('destaque no topo da coluna do meio, seções em colunas sem sobreposição e filhos dentro', () => {
+    const nodes: LNode[] = [{ id: 'hero', kind: 'image', w: 300, h: 300 }]
+    for (let i = 0; i < 6; i++) {
+      nodes.push({ id: `s${i}`, kind: 'frame', w: 10, h: 10 })
+      for (let j = 0; j < 2 + (i % 3); j++) nodes.push({ id: `s${i}k${j}`, kind: 'text', w: 290, h: 40 + j * 10, frame: `s${i}` })
+    }
+    nodes.push({ id: 'foot', kind: 'geo', w: 300, h: 60, role: 'accent' })
+    const out = computeLayout({ type: 'sheet', root: 'hero', columns: 3, nodes, edges: [], gap: 56 })
+    const b = out.boxes
+    const sections = [0, 1, 2, 3, 4, 5].map((i) => b.get(`s${i}`)!)
+    expectNoOverlaps(new Map([...sections.map((r, i) => [`s${i}`, r] as const), ['hero', b.get('hero')!], ['foot', b.get('foot')!]]))
+    for (let i = 0; i < 6; i++)
+      for (let j = 0; j < 2 + (i % 3); j++) {
+        const k = b.get(`s${i}k${j}`)!
+        const s = sections[i]!
+        expect(k.x).toBeGreaterThanOrEqual(s.x)
+        expect(k.y + k.h).toBeLessThanOrEqual(s.y + s.h)
+      }
+    expect(b.get('foot')!.y).toBeGreaterThan(Math.max(...sections.map((s) => s.y + s.h)))
+  })
+})
+
+describe('labeled (ilustração rotulada)', () => {
+  it('rótulos dos dois lados da ilustração, descrição logo abaixo do termo', () => {
+    const nodes: LNode[] = [{ id: 'img', kind: 'image', w: 400, h: 400 }]
+    const edges: LEdge[] = []
+    for (let i = 0; i < 6; i++) {
+      nodes.push({ id: `t${i}`, kind: 'text', w: 140, h: 36 }, { id: `d${i}`, kind: 'text', w: 220, h: 60 })
+      edges.push({ from: `t${i}`, to: 'img' }, { from: `t${i}`, to: `d${i}`, weak: true })
+    }
+    const b = computeLayout({ type: 'labeled', root: 'img', nodes, edges, gap: 56 }).boxes
+    expectNoOverlaps(b)
+    const img = b.get('img')!
+    const sides = [0, 1, 2, 3, 4, 5].map((i) => (b.get(`t${i}`)!.x < img.x ? -1 : 1))
+    expect(sides.filter((s) => s === -1).length).toBe(3)
+    for (let i = 0; i < 6; i++) expect(b.get(`d${i}`)!.y).toBeGreaterThan(b.get(`t${i}`)!.y)
+  })
+})

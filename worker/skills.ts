@@ -5,6 +5,7 @@ import diagramCore from '../skills/diagram-core/SKILL.md?raw'
 import mindMap from '../skills/mind-map/SKILL.md?raw'
 import notesToDiagram from '../skills/notes-to-diagram/SKILL.md?raw'
 import processFlow from '../skills/process-flow/SKILL.md?raw'
+import studySheet from '../skills/study-sheet/SKILL.md?raw'
 import type { TransformRequest } from '../src/shared/mutations'
 
 /**
@@ -32,9 +33,10 @@ export const SKILLS = {
   compareClassify: parseSkill(compareClassify),
   charts: parseSkill(charts),
   notes: parseSkill(notesToDiagram),
+  studySheet: parseSkill(studySheet),
 } as const
 
-type TypeSkill = 'mindMap' | 'conceptMap' | 'processFlow' | 'compareClassify' | 'charts'
+type TypeSkill = 'mindMap' | 'conceptMap' | 'processFlow' | 'compareClassify' | 'charts' | 'studySheet'
 
 /** Gatilhos por intenção (pt/en/es), comparados sem acentos e em minúsculas. */
 const TRIGGERS: Record<TypeSkill, RegExp> = {
@@ -42,16 +44,19 @@ const TRIGGERS: Record<TypeSkill, RegExp> = {
   conceptMap: /mapa conceitual|mapa de conceitos|concept ?maps?|relac(ao|oes|iona)|relat(e|ion)|conex|conect|connect|por ?que|why|como funciona|how does|mecanismo|mechanism|expli(que|car|cacao)|explain/,
   processFlow: /fluxo|flow ?chart|flowchart|fluxograma|passo a passo|passos|\betapas?\b|\bsteps?\b|processo|process|procedimento|procedure|algoritmo|algorithm|decis|decision|\bciclos?\b|\bcycles?\b|\bloop\b|linha do tempo|timeline|cronolog|chronolog|historia|history|\bfases?\b|estagios|stages|sequencia|sequence|causa|consequen|efeitos?|ishikawa|espinha de peixe|fishbone/,
   compareClassify: /compar|\bvs\.?\b|versus|diferen|semelhan|similar|pros e contras|pros and cons|vantagens|desvantagens|tipos de|types of|classifica|taxonom|categori|partes d|parts of|estrutura|structure|organograma|org chart|hierarqu|hierarch|matriz|matrix|tabela|\btable\b|glossario|glossary|flashcards?|cartoes/,
+  studySheet: /folha|resumo visual|resumo de uma pagina|one[- ]page|infografico|infographic|poster|sketchnote|caderno|a mao|handwritten|hand[- ]drawn|ilustr|illustrat|desenh|draw|anatomia|anatomy|rotulad|labeled|partes d|parts of|estrutura d|structure of|doodle/,
   charts: /grafico|graph of|chart|plot|curva|histograma|histogram|barras|bar chart|pizza|\bpie\b|rosca|donut|porcent|percent|proporc|funcao|function|y ?= |\beixos?\b|\baxis\b|\bdados\b|\bdata\b|reta numerica|number line|tendencia|trend/,
 }
 
 const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /** Core sempre; skills de tipo pelos gatilhos (todas as de estudo se nenhum casar); notas quando há seleção. */
-export function selectSkills(req: Pick<TransformRequest, 'prompt' | 'subgraph' | 'attachments'>): Skill[] {
+export function selectSkills(req: Pick<TransformRequest, 'prompt' | 'subgraph' | 'attachments'> & { designSystem?: string | undefined }): Skill[] {
   const text = normalize(req.prompt)
   const matched = (Object.keys(TRIGGERS) as TypeSkill[]).filter((k) => TRIGGERS[k].test(text))
   const types: TypeSkill[] = matched.length ? matched : ['mindMap', 'conceptMap', 'processFlow', 'compareClassify']
+  // No estilo caderno, a folha de estudo e as ilustrações estão sempre à mão.
+  if (req.designSystem === 'handwritten' && !types.includes('studySheet')) types.push('studySheet')
   const fromSelection = (req.subgraph.mode === 'selection' && req.subgraph.nodes.length > 0) || Boolean(req.attachments?.length)
   return [SKILLS.core, ...types.map((k) => SKILLS[k]), ...(fromSelection ? [SKILLS.notes] : [])]
 }

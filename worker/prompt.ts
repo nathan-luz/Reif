@@ -46,10 +46,17 @@ Rules:
  * Prompt de sistema = regras do motor + design system ativo + skills de diagramação
  * escolhidas pela intenção do pedido (ver /skills e worker/skills.ts).
  */
-export function buildSystemPrompt(req: Pick<TransformRequest, 'designSystem' | 'prompt' | 'subgraph' | 'attachments'>): string {
+export function buildSystemPrompt(
+  req: Pick<TransformRequest, 'designSystem' | 'prompt' | 'subgraph' | 'attachments'>,
+  caps: { imageGeneration?: boolean } = {},
+): string {
   const skills = renderSkills(selectSkills(req))
+  const images = caps.imageGeneration
+    ? 'AI image generation is AVAILABLE: kind "image" with "generate" (English subject description) creates an illustration in the active style.'
+    : 'AI image generation is NOT available: for pictures use kind "image" with a search "query" only (do not use "generate").'
   return `${SYSTEM_PROMPT}
 ${describeForLLM(getDesignSystem(req.designSystem))}
+${images}
 
 # Diagramming skills
 Follow these skills when the instruction asks for visual structure (diagrams, maps, schemas, charts).

@@ -24,6 +24,8 @@ const NOTE = { w: 200, h: 200 }
 const GEO = { w: 240, h: 120 }
 const TEXT = { w: 240, h: 60 }
 const FRAME = { w: 640, h: 420 }
+export const DOODLE = { w: 64, h: 64 }
+const GENERATED = { w: 300, h: 300 }
 
 /** Retângulo em coordenadas de página que o nó vai ocupar. */
 export function footprint(c: ResolvedCreateNode): Rect {
@@ -39,7 +41,12 @@ export function footprint(c: ResolvedCreateNode): Rect {
     case 'frame':
       return { x: c.x, y: c.y, w: c.w ?? FRAME.w, h: c.h ?? FRAME.h }
     case 'image':
-      return { x: c.x, y: c.y, w: c.w ?? IMAGE_SLOT_DEFAULT_SIZE.w, h: c.h ?? IMAGE_SLOT_DEFAULT_SIZE.h }
+      // Ilustração gerada sai quadrada (FLUX 1024²): slot quadrado por padrão.
+      return c.generate
+        ? { x: c.x, y: c.y, w: c.w ?? GENERATED.w, h: c.h ?? c.w ?? GENERATED.h }
+        : { x: c.x, y: c.y, w: c.w ?? IMAGE_SLOT_DEFAULT_SIZE.w, h: c.h ?? IMAGE_SLOT_DEFAULT_SIZE.h }
+    case 'doodle':
+      return { x: c.x, y: c.y, w: c.w ?? DOODLE.w, h: c.h ?? DOODLE.h }
     case 'line':
     case 'draw':
       return unionRect(c.points.map((p) => ({ ...p, w: 0, h: 0 }))) ?? { x: c.x, y: c.y, w: 0, h: 0 }
@@ -160,13 +167,17 @@ export function buildCreate(c: ResolvedCreateNode, p: Placement): TLShapePartial
         },
       } as TLShapePartial<TLDrawShape>
     }
+    case 'doodle':
+      // Desenhado em applyPlan (traços do ícone já carregados); aqui não há shape único.
+      return null
     case 'youtube':
       return c.youtube ? { ...youtubeShapePartial(p.id, { ...c.youtube, start: 0 }, pos), parentId: base.parentId } : null
     case 'image': {
       const { w, h } = footprint(c)
       return {
         ...base, type: IMAGE_SLOT_SHAPE, ...pos,
-        props: { w, h, query: c.query?.trim() || c.text },
+        props: { w, h, query: c.query?.trim() || c.generate?.trim() || c.text },
+        meta: { reif: { role: c.role ?? 'primary', ...(c.generate?.trim() ? { generate: c.generate.trim() } : {}) } },
       } satisfies TLShapePartial<ImageSlotShape>
     }
   }

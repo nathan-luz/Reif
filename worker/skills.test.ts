@@ -28,7 +28,13 @@ describe('skills', () => {
   })
 
   it('sem gatilho: core + todas as de estudo (sem charts)', () => {
-    expect(names('desenhe algo sobre biologia celular')).toEqual(['diagram-core', 'mind-map', 'concept-map', 'process-flow', 'compare-classify'])
+    expect(names('algo sobre biologia celular')).toEqual(['diagram-core', 'mind-map', 'concept-map', 'process-flow', 'compare-classify'])
+  })
+
+  it('folha de estudo / ilustração rotulada', () => {
+    expect(names('faça uma folha de estudo sobre o sistema digestório')).toContain('study-sheet')
+    expect(names('anatomia do olho com as partes rotuladas')).toContain('study-sheet')
+    expect(selectSkills({ prompt: 'algo sobre células', subgraph: empty, designSystem: 'handwritten' }).map((s) => s.name)).toContain('study-sheet')
   })
 
   it('palavras que contêm gatilhos curtos não disparam', () => {

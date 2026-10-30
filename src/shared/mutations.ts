@@ -15,7 +15,7 @@ export const GEO_TYPES = [
 export const FILLS = ['none', 'semi', 'solid', 'pattern'] as const
 export const DASHES = ['draw', 'solid', 'dashed', 'dotted'] as const
 export const SIZES = ['s', 'm', 'l', 'xl'] as const
-export const NODE_KINDS = ['note', 'text', 'geo', 'line', 'draw', 'frame', 'youtube', 'image'] as const
+export const NODE_KINDS = ['note', 'text', 'geo', 'line', 'draw', 'frame', 'youtube', 'image', 'doodle'] as const
 
 export const ColorSchema = z.enum(COLORS)
 export type NodeKind = (typeof NODE_KINDS)[number]
@@ -35,7 +35,8 @@ export const CreateNodeSchema = z.object({
     .describe(
       'note = post-it 200x200; text = texto solto; geo = forma geométrica com texto opcional; ' +
         'line = polilinha (points); draw = traço à mão livre (points); frame = contêiner nomeado; youtube = vídeo 480x270; ' +
-        'image = espaço para imagem buscada na internet (o usuário escolhe)',
+        'image = imagem: gerada por IA (generate) ou buscada na internet (query); ' +
+        'doodle = ícone desenhado à mão (icon = nome Lucide, ex.: lightbulb, target, flask-conical), 64x64 por padrão',
     ),
   text: z.string().describe('Conteúdo/rótulo. Para frame, o nome. Pode ser vazio em geo/line/draw.'),
   x: z.number().describe('Canto superior esquerdo em coordenadas de página. Para line/draw, o primeiro ponto.'),
@@ -57,10 +58,15 @@ export const CreateNodeSchema = z.object({
   size: z.enum(SIZES).optional().describe('Espessura do traço / tamanho da fonte'),
   frame: z.string().optional().describe('ref de um frame criado neste plano para conter este nó'),
   query: z.string().optional().describe('youtube/image: termos de busca precisos para encontrar o vídeo ou a imagem.'),
+  generate: z
+    .string()
+    .optional()
+    .describe('image: descrição EM INGLÊS do que desenhar para a IA gerar (só o assunto, sem estilo e sem texto/rótulos)'),
+  icon: z.string().optional().describe('doodle: nome de ícone Lucide em kebab-case (ex.: lightbulb, brain, heart-pulse)'),
 })
 
 // ── Layout (posições calculadas no canvas, não pelo LLM) ──────────────────
-export const LAYOUT_TYPES = ['free', 'mindmap', 'tree', 'flow', 'radial', 'cycle', 'timeline', 'columns', 'grid'] as const
+export const LAYOUT_TYPES = ['free', 'mindmap', 'tree', 'flow', 'radial', 'cycle', 'timeline', 'columns', 'grid', 'sheet', 'labeled'] as const
 export type LayoutType = (typeof LAYOUT_TYPES)[number]
 export const LAYOUT_DIRECTIONS = ['down', 'right'] as const
 
@@ -71,11 +77,13 @@ export const LayoutSchema = z.object({
       'Como o canvas posiciona os nós criados. free = usa x/y do plano (gráficos, ilustrações). ' +
         'mindmap = raiz no centro, ramos à esquerda/direita. tree = hierarquia arrumada. flow = camadas de um grafo dirigido ' +
         '(fluxogramas, mapas conceituais, cadeias causais). radial = hub-and-spoke em anéis. cycle = nós em círculo na ordem das setas. ' +
-        'timeline = sequência ordenada. columns = frames lado a lado com filhos empilhados (comparação, categorias). grid = cartões em grade.',
+        'timeline = sequência ordenada. columns = frames lado a lado com filhos empilhados (comparação, categorias). grid = cartões em grade. ' +
+        'sheet = folha de estudo de uma página: título, destaque central (root) e seções (frames) numeradas em colunas. ' +
+        'labeled = ilustração central (root, geralmente image) com rótulos ligados a ela por linhas-guia.',
     ),
   root: z.string().optional().describe('mindmap/tree/radial/cycle: ref (ou id existente) do nó central/raiz'),
   direction: z.enum(LAYOUT_DIRECTIONS).optional().describe('tree/flow/timeline: down (padrão p/ tree e flow) ou right'),
-  columns: z.number().optional().describe('grid: número de colunas (1-8)'),
+  columns: z.number().optional().describe('grid/sheet: número de colunas (grid 1-8, sheet 1-3)'),
   branchColors: z
     .boolean()
     .optional()

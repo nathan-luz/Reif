@@ -21,6 +21,8 @@ import { summarizeFile, summarizeText, transcribeFile, uploadToGemini } from './
 import { summarizeVideo, transcribeVideo } from './video'
 import { VideoRequestSchema } from '../src/shared/video'
 import { fetchVideoTitle } from './resolvers/youtube'
+import { generateImage, GenerateRequestSchema, imageGenConfigured, type ImageGenEnv } from './images/generate'
+import { LocateRequestSchema, locateParts } from './images/locate'
 
 type Env = {
   GEMINI_API_KEY?: string
@@ -31,6 +33,10 @@ type Env = {
   UNSPLASH_ACCESS_KEY?: string
   PIXABAY_API_KEY?: string
   PEXELS_API_KEY?: string
+  /** Workers AI (geração de imagens): binding opcional ou REST com conta + token. */
+  AI?: Ai
+  CLOUDFLARE_ACCOUNT_ID?: string
+  CLOUDFLARE_AI_TOKEN?: string
 }
 
 const PLAN_JSON_SCHEMA = z.toJSONSchema(LLMPlanSchema) as JsonSchema
@@ -60,7 +66,7 @@ app.post('/api/transform', async (c) => {
 
   try {
     const raw = await provider.generate({
-      system: buildSystemPrompt(req),
+      system: buildSystemPrompt(req, { imageGeneration: imageGenConfigured(c.env as unknown as ImageGenEnv) }),
       user: buildUserMessage(req),
       schema: PLAN_JSON_SCHEMA,
     })
@@ -95,6 +101,30 @@ app.get('/api/images/search', async (c) => {
 
 app.get('/api/files/head', (c) => headFile(c.req.query('url')))
 app.get('/api/files/fetch', (c) => fetchFile(c.req.query('url')))
+
+app.post('/api/images/generate', async (c) => {
+  const parsed = GenerateRequestSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ error: 'payload inválido' }, 400)
+  try {
+    const out = await generateImage(c.env as unknown as ImageGenEnv, parsed.data)
+    if ('error' in out) return c.json({ error: out.error }, out.status)
+    return c.json(out)
+  } catch (err) {
+    console.error('[images/generate]', err)
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 502)
+  }
+})
+
+app.post('/api/images/locate', async (c) => {
+  const parsed = LocateRequestSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ error: 'payload inválido' }, 400)
+  const out = await locateParts(c.env.GEMINI_API_KEY, c.env.GEMINI_MODEL ?? 'gemini-3.5-flash', parsed.data).catch((e: unknown) => ({
+    error: String(e),
+    status: 502 as const,
+  }))
+  if ('error' in out) return c.json({ error: out.error }, out.status)
+  return c.json(out)
+})
 
 app.get('/api/images/proxy', (c) => proxyImage(c.req.query('url') ?? ''))
 

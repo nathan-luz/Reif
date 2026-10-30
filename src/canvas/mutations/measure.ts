@@ -62,7 +62,14 @@ function measure(editor: Editor | null, text: string, fontSizePx: number, font: 
 const sizeOf = (s: string | undefined): Size => (s === 's' || s === 'l' || s === 'xl' ? s : 'm')
 
 /** Tamanho final do nó (w/h) ou null quando o tamanho é fixo/indiferente. */
-export function measureNode(editor: Editor | null, c: ResolvedCreateNode, style: StyleHint, role: string): { w: number; h: number } | null {
+export function measureNode(
+  editor: Editor | null,
+  c: ResolvedCreateNode,
+  style: StyleHint,
+  role: string,
+  /** Largura fixa (ex.: coluna da folha de estudo): o texto quebra nela. */
+  fixedWidth?: number,
+): { w: number; h: number } | null {
   const font = style.font ?? 'draw'
   const size = sizeOf(style.size)
   const base = 16
@@ -72,6 +79,10 @@ export function measureNode(editor: Editor | null, c: ResolvedCreateNode, style:
       const [fx, fy] = SHAPE_FACTOR[c.geo ?? 'rectangle'] ?? [1, 1]
       if (!text) return null
       const px = base * LABEL_FONT[size]
+      if (fixedWidth) {
+        const box = measure(editor, text, px, font, Math.max(40, fixedWidth / fx - LABEL_PADDING * 2 - 12))
+        return { w: fixedWidth, h: Math.max(56, Math.ceil((box.h + LABEL_PADDING * 2) * fy)) }
+      }
       const maxW = GEO_MAX_TEXT_W[role] ?? 200
       const natural = measure(editor, text, px, font, null)
       const box = natural.w <= maxW ? natural : measure(editor, text, px, font, maxW)
@@ -82,6 +93,10 @@ export function measureNode(editor: Editor | null, c: ResolvedCreateNode, style:
     case 'text': {
       const text = c.text.trim() || ' '
       const px = base * TEXT_FONT[size]
+      if (fixedWidth) {
+        const box = measure(editor, text, px, font, fixedWidth - 16)
+        return { w: fixedWidth, h: Math.ceil(box.h + 8) }
+      }
       const maxW = TEXT_MAX_W[role] ?? 260
       const natural = measure(editor, text, px, font, null)
       const box = natural.w <= maxW ? natural : measure(editor, text, px, font, maxW)

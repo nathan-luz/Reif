@@ -12,7 +12,8 @@ export const STYLE_ROLES = [
 ] as const
 export type StyleRole = (typeof STYLE_ROLES)[number]
 
-export type DsFont = 'draw' | 'sans' | 'serif' | 'mono'
+/** draw/sans/serif/mono = fontes do tldraw; hand/script = manuscritas do Reif (Patrick Hand, Caveat). */
+export type DsFont = 'draw' | 'sans' | 'serif' | 'mono' | 'hand' | 'script'
 export type DsFill = 'none' | 'semi' | 'solid' | 'pattern' | 'lined-fill'
 export type DsDash = 'draw' | 'solid' | 'dashed' | 'dotted'
 export type DsSize = 's' | 'm' | 'l' | 'xl'
@@ -41,7 +42,21 @@ export interface DesignSystem {
   roles: Record<StyleRole, RoleStyle>
   /** Espaçamento preferido entre nós (px) e dica de composição para o LLM. */
   layout: { gap: number; hint: string }
+  /** Papel do whiteboard (padrão acompanha a câmera). */
+  paper?: { light?: Paper; dark?: Paper }
+  /**
+   * Estilo das imagens geradas por IA (anexado ao prompt de cada imagem) e qual fundo
+   * remover depois para a ilustração "pousar" no papel.
+   */
+  imageStyle: { prompt: string; removeBackground: 'light' | 'dark' | 'none' }
+  /**
+   * Força do "semi" de TODAS as cores (0 = cor pura, 1 = fundo). Caderno usa pastel mais
+   * visível que o padrão do tldraw (quase branco) para pílulas e cartões de seção.
+   */
+  pastel?: number
 }
+
+export type Paper = 'dots' | 'grid' | 'lines'
 
 type RoleOverrides = Partial<Record<StyleRole, Partial<RoleStyle>>>
 
@@ -82,6 +97,10 @@ export const DESIGN_SYSTEMS: readonly DesignSystem[] = [
     },
     roles: roles({ font: 'draw', dash: 'draw' }),
     layout: { gap: 60, hint: 'organic, slightly loose layouts are fine' },
+    imageStyle: {
+      prompt: 'simple hand-drawn marker sketch, loose black outlines with flat soft colors, plain white background, isolated subject',
+      removeBackground: 'light',
+    },
   },
   {
     id: 'minimal',
@@ -100,6 +119,10 @@ export const DESIGN_SYSTEMS: readonly DesignSystem[] = [
       { primary: { fill: 'none' }, secondary: { fill: 'none' }, accent: { fill: 'semi' }, container: { dash: 'solid' } },
     ),
     layout: { gap: 48, hint: 'strict grid alignment, generous whitespace, few colors' },
+    imageStyle: {
+      prompt: 'minimal flat vector illustration, few colors, clean geometric shapes, plain white background, isolated subject',
+      removeBackground: 'light',
+    },
   },
   {
     id: 'blueprint',
@@ -124,6 +147,11 @@ export const DESIGN_SYSTEMS: readonly DesignSystem[] = [
       },
     ),
     layout: { gap: 56, hint: 'orthogonal, engineering-diagram layouts aligned to a grid' },
+    paper: { light: 'grid', dark: 'grid' },
+    imageStyle: {
+      prompt: 'technical blueprint line drawing, thin white and light blue lines on solid black background, schematic, isolated subject',
+      removeBackground: 'dark',
+    },
   },
   {
     id: 'notebook',
@@ -142,6 +170,43 @@ export const DESIGN_SYSTEMS: readonly DesignSystem[] = [
       { container: { dash: 'dotted' }, highlight: { fill: 'lined-fill' }, accent: { fill: 'pattern' } },
     ),
     layout: { gap: 56, hint: 'study-notes feel: titles on top, content flowing in columns' },
+    paper: { light: 'lines' },
+    imageStyle: {
+      prompt: 'vintage ink and watercolor illustration, sepia line art with muted washes, plain white paper background, isolated subject',
+      removeBackground: 'light',
+    },
+  },
+  {
+    id: 'handwritten',
+    name: 'Caderno à mão',
+    description:
+      'Hand-lettered study notebook: handwriting fonts, cursive titles, pastel section cards with dashed outlines, doodles beside items, colored-pencil illustrations on dotted paper.',
+    light: {
+      background: '#fdfbf6',
+      colors: { 'ds-primary': '#7b5ea7', 'ds-secondary': '#2f8f83', 'ds-accent': '#e0587a', 'ds-muted': '#a39fa8', 'ds-ink': '#2e2a36' },
+    },
+    dark: {
+      background: '#1d2321',
+      colors: { 'ds-primary': '#c4a8ff', 'ds-secondary': '#6fe0c6', 'ds-accent': '#ff8fab', 'ds-muted': '#7f8a86', 'ds-ink': '#f1efe8' },
+    },
+    roles: roles(
+      { font: 'hand', dash: 'draw' },
+      {
+        title: { font: 'script', size: 'xl' },
+        heading: { size: 'l' },
+        highlight: { fill: 'solid' },
+        container: { dash: 'dashed' },
+        muted: { size: 's' },
+      },
+    ),
+    layout: { gap: 56, hint: 'one-page study sheet: cursive title on top, numbered pastel section cards, doodles beside items, a takeaway at the bottom' },
+    paper: { light: 'dots', dark: 'grid' },
+    pastel: 0.7,
+    imageStyle: {
+      prompt:
+        'hand-drawn colored pencil illustration, soft pastel colors, delicate clean ink outlines, educational notebook drawing, plain white paper background, isolated subject, centered',
+      removeBackground: 'light',
+    },
   },
 ]
 

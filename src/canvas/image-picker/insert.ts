@@ -3,6 +3,7 @@ import {
   createShapeId,
   type Editor,
   type JsonObject,
+  type TLArrowBinding,
   type TLImageAsset,
   type TLImageShape,
   type TLShapeId,
@@ -63,7 +64,6 @@ export async function insertImage(editor: Editor, hit: ImageHit, slotId?: TLShap
   editor.markHistoryStoppingPoint('reif:insert-image')
   editor.run(() => {
     editor.createAssets([{ ...asset, props: { ...asset.props, src } }])
-    if (target) editor.deleteShape(target.id)
     editor.createShape<TLImageShape>({
       id,
       type: 'image',
@@ -71,6 +71,13 @@ export async function insertImage(editor: Editor, hit: ImageHit, slotId?: TLShap
       props: { assetId, w, h, altText: hit.title },
       meta: attribution(hit),
     })
+    if (target) {
+      // Linhas-guia/setas que apontavam para o slot passam a apontar para a imagem.
+      const bindings = editor.getBindingsToShape<TLArrowBinding>(target, 'arrow')
+      editor.createBindings(bindings.map((b) => ({ type: 'arrow' as const, fromId: b.fromId, toId: id, props: b.props, meta: b.meta })))
+      editor.deleteBindings(bindings)
+      editor.deleteShape(target.id)
+    }
     editor.select(id)
   })
   return id

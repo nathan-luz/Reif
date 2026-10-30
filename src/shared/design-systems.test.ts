@@ -9,7 +9,7 @@ describe('design systems', () => {
     }
     for (const role of STYLE_ROLES) {
       expect(DS_COLORS).toContain(ds.roles[role].color)
-      expect(['draw', 'sans', 'serif', 'mono']).toContain(ds.roles[role].font)
+      expect(['draw', 'sans', 'serif', 'mono', 'hand', 'script']).toContain(ds.roles[role].font)
     }
   })
 

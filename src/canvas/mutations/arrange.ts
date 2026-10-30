@@ -10,7 +10,9 @@ import { computeLayout, pickRoot, spanningTree, type LNode, type Pt, type Spine 
 import { measureNode } from './measure'
 import { overlaps, unionRect, type Rect } from './placement'
 
-const POSITIONED = new Set(['geo', 'note', 'text', 'image', 'youtube', 'frame'])
+/** Largura útil das colunas da folha de estudo. */
+export const SHEET_INNER = 290
+const POSITIONED = new Set(['geo', 'note', 'text', 'image', 'youtube', 'frame', 'doodle'])
 /** Distância entre a seleção e o diagrama novo (mesma regra dada ao LLM). */
 const SIDE_GAP = 80
 
@@ -33,7 +35,12 @@ export interface Arranged {
   layout?: { type: 'mindmap' | 'tree'; direction: 'down' | 'right' }
   /** Retângulo final do diagrama inteiro (para afastar o que estiver em volta). */
   footprintAll?: Rect
+  /** Raiz efetiva do layout (ref ou id): a ilustração na "ilustração rotulada". */
+  rootRef?: string
 }
+
+/** Cores das seções da folha de estudo (pastéis quando usadas em "semi"). */
+export const SECTION_COLORS = ['violet', 'green', 'blue', 'orange', 'red', 'light-blue', 'yellow'] as const
 
 /** Matizes distintos do tldraw para ramos (sinalização: 1 cor = 1 ramo; raiz neutra). */
 export const BRANCH_COLORS = ['blue', 'green', 'violet', 'red', 'light-blue', 'yellow', 'orange'] as const
@@ -73,7 +80,8 @@ export function arrangePlan(
     // Livre: textos mantêm autoSize (o LLM os posicionou contando com uma linha só).
     if (plan.layout.type === 'free' && c.kind === 'text') return c
     const props = styleOf(c, c.kind === 'image' || c.kind === 'youtube' ? 'geo' : c.kind, ds).props
-    const m = measureNode(editor, c, { size: props.size, font: props.font }, roleOf(c))
+    const fixed = plan.layout.type === 'sheet' && c.frame && (c.kind === 'text' || c.kind === 'geo') ? SHEET_INNER : undefined
+    const m = measureNode(editor, c, { size: props.size, font: props.font }, roleOf(c), fixed)
     if (!m) return c
     // Layout manda no tamanho; em "free" só cresce (o LLM pode ter pedido maior de propósito).
     return plan.layout.type === 'free' ? { ...c, w: Math.max(c.w ?? 0, m.w), h: Math.max(c.h ?? 0, m.h) } : { ...c, ...m }
@@ -149,11 +157,22 @@ export function arrangePlan(
     plan.layout.branchColors && root && ['mindmap', 'radial', 'tree'].includes(plan.layout.type)
       ? branchColors(root, nodes.filter((n) => n.kind !== 'frame'), plan.connect)
       : new Map<string, Color>()
+  // Folha de estudo: cada seção ganha uma cor; cartões e doodles dela herdam (texto fica na tinta).
+  if (plan.layout.type === 'sheet') {
+    plan.create
+      .filter((c) => c.kind === 'frame')
+      .forEach((f, i) => {
+        const color = SECTION_COLORS[i % SECTION_COLORS.length]!
+        branch.set(f.ref, color)
+        for (const k of plan.create) if (k.frame === f.ref && (k.kind === 'geo' || k.kind === 'doodle')) branch.set(k.ref, color)
+      })
+  }
   const move = (p: Pt): Pt => ({ x: Math.round(p.x + dx), y: Math.round(p.y + dy) })
   return {
     create,
     pinned: Boolean(rootExisting && rootBox),
     align,
+    ...(root ? { rootRef: root } : {}),
     edgeVia: new Map([...edgeVia].map(([i, p]) => [i, move(p)])),
     shortEdges,
     branch,

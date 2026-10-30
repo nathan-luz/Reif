@@ -3,7 +3,7 @@ import { useEditor, useValue } from 'tldraw'
 import { getDesignSystem } from '../shared/design-systems'
 import { designSystemId } from './state'
 import { reskin, trackManualOverrides } from './styling'
-import { buildTheme } from './theme'
+import { buildTheme, REIF_FONTS } from './theme'
 
 /**
  * Troca de design system: atualiza as cores ds-* e o fundo no tema (sem tocar nos shapes)
@@ -15,6 +15,8 @@ export function DesignSystemBridge() {
   const mode = useValue('reif:color-mode', () => editor.getColorMode(), [editor])
 
   useEffect(() => trackManualOverrides(editor), [editor])
+  // Fontes manuscritas carregadas cedo: medição de texto e primeiro desenho já saem certos.
+  useEffect(() => editor.fonts.requestFonts(Object.values(REIF_FONTS).flatMap((f) => f.faces ?? [])), [editor])
 
   useEffect(() => {
     const ds = getDesignSystem(id)
@@ -32,6 +34,7 @@ export function DesignSystemBridge() {
       '--tl-color-text': palette.text,
     }
     for (const [k, v] of Object.entries(vars)) container.style.setProperty(k, v)
+    container.dataset['reifDs'] = id
     return () => {
       for (const k of Object.keys(vars)) container.style.removeProperty(k)
     }

@@ -32,7 +32,9 @@ Before choosing anything, restate the request as a question the diagram answers,
 | compare / contrast 2–4 things, pros and cons, categories | side-by-side columns | `columns` (one frame per item) |
 | many items × several attributes, glossary cards | grid of cards | `grid` |
 | quantities, trends, proportions | chart | `free` (see the charts skill) |
-| an illustration or sketch ("draw a cell") | drawing | `free` |
+| a whole topic on one page, visual summary, infographic, sketchnote | study sheet | `sheet` (see the study-sheet skill) |
+| the parts of an object, organ or structure | labeled illustration | `labeled` (see the study-sheet skill) |
+| an illustration or sketch ("draw a cell") | generated `image`, or `draw` strokes for simple sketches | `free` |
 
 Default to the structure the content actually has; a mind map is not a universal answer. Use a mind map for an overview and a concept map for "why/how".
 
@@ -55,6 +57,8 @@ Default to the structure the content actually has; a mind map is not a universal
   - `cloud`: abstract or uncertain idea
   - `hexagon`: key mechanism
 - `text` = a free-floating label: titles, leaf keywords in mind maps and trees, annotations. Default to free text and add a container only when the box has a purpose (the focal point, an arrow target, or shape meaning). Aim for ≤ 40% of the text to sit inside boxes in mind maps and trees.
+- `image` = a picture. Use `generate` (an English subject description) to have AI draw it in the active style, with no text in the image, or `query` to search the web.
+- `doodle` = a small hand-drawn icon (`icon`: a Lucide name such as lightbulb, target or heart-pulse) placed beside an item as a visual cue.
 - `note` = a sticky with a short sentence: examples, mnemonics, "remember that…" (≤ 15 words). Attach it to the node it explains with `connect` (`arrow: "none"`, `dashed: true`) so the layout places it beside that node.
 - `frame` = a named group (columns, zones). Children set `"frame": "<ref>"`.
 - `connect` = arrows bound to nodes. Never draw arrows with `line`.
