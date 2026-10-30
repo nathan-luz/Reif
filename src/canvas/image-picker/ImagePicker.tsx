@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { stopEventPropagation, useEditor, useValue } from 'tldraw'
+import { stopEventPropagation, TldrawUiButton, TldrawUiButtonLabel, TldrawUiIcon, useEditor, useValue } from 'tldraw'
+import { IconButton } from '../../ui/IconButton'
 import { IMAGE_SOURCES, interleave, type ImageHit, type ImageSource, type SourceStatus } from '../../shared/images'
 import { searchAllSources, type SourceResult } from './api'
 import { insertImage } from './insert'
@@ -13,12 +14,12 @@ const SOURCE_LABEL: Record<SourceStatus['source'], string> = {
   openverse: 'Openverse',
 }
 
-const STATUS_STYLE: Record<SourceStatus['status'], string> = {
-  ok: 'bg-emerald-50 text-emerald-700',
-  empty: 'bg-black/5 text-black/50',
-  quota: 'bg-amber-50 text-amber-800',
-  error: 'bg-red-50 text-red-700',
-  unconfigured: 'bg-black/5 text-black/35 line-through',
+const STATUS_TONE: Record<SourceStatus['status'], 'default' | 'muted' | 'warning' | 'danger'> = {
+  ok: 'default',
+  empty: 'muted',
+  quota: 'warning',
+  error: 'danger',
+  unconfigured: 'muted',
 }
 
 const STATUS_HINT: Record<SourceStatus['status'], string> = {
@@ -29,7 +30,7 @@ const STATUS_HINT: Record<SourceStatus['status'], string> = {
   unconfigured: 'sem chave',
 }
 
-/** Montado no InFrontOfTheCanvas; abre via atom `imagePicker`. */
+/** Montado nas sobreposições (ReifOverlays); abre via atom `imagePicker`. */
 export const ImagePicker = memo(function ImagePicker() {
   const state = useValue(imagePicker)
   if (!state) return null
@@ -94,7 +95,7 @@ function PickerDialog({ state }: { state: ImagePickerState }) {
 
   return (
     <div
-      className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/30"
+      className="reif-enter pointer-events-auto absolute inset-0 flex items-center justify-center bg-tl-overlay"
       onPointerDown={(e) => {
         stopEventPropagation(e)
         if (e.target === e.currentTarget) closeImagePicker()
@@ -106,41 +107,44 @@ function PickerDialog({ state }: { state: ImagePickerState }) {
       }}
       data-testid="image-picker"
     >
-      <div className="flex h-[80vh] w-[min(960px,94vw)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <form onSubmit={onSearch} className="flex items-center gap-2 border-b border-black/10 p-3">
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Buscar imagens…"
-            className="min-w-0 flex-1 rounded-lg bg-black/5 px-3 py-2 text-sm outline-none"
-            aria-label="Buscar imagens"
-          />
-          <button type="submit" className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white">
-            Buscar
-          </button>
-          <button
-            type="button"
-            onClick={closeImagePicker}
-            className="rounded-lg px-2 py-2 text-sm text-black/50 hover:bg-black/5"
-            aria-label="Fechar"
-          >
-            ✕
-          </button>
+      <div role="dialog" aria-label="Buscar imagem na web" className="reif-panel flex h-[80vh] w-[min(960px,94vw)] flex-col overflow-hidden">
+        <header className="reif-panel-header pr-1">
+          <h2 className="reif-panel-title">Buscar imagem na web</h2>
+          <IconButton icon="cross-2" label="Fechar" onClick={closeImagePicker} />
+        </header>
+        <form onSubmit={onSearch} className="flex items-center border-b border-tl-divider pr-1">
+          <div className="reif-field flex-1">
+            <TldrawUiIcon icon="reif-search" label="" small />
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Buscar imagens…"
+              aria-label="Buscar imagens"
+            />
+          </div>
+          <TldrawUiButton type="primary" htmlButtonType="submit">
+            <TldrawUiButtonLabel>Buscar</TldrawUiButtonLabel>
+          </TldrawUiButton>
         </form>
 
         {query.trim() && (
-          <div className="flex flex-wrap gap-1.5 border-b border-black/5 px-3 py-2">
+          <div className="flex flex-wrap gap-1.5 px-3 py-2">
             {IMAGE_SOURCES.map((source) => {
               const s = results[source]?.status
               if (!s)
                 return (
-                  <span key={source} className="animate-pulse rounded-full bg-black/5 px-2 py-0.5 text-[11px] text-black/40">
+                  <span key={source} className="reif-chip reif-pulse" data-tone="muted">
                     {SOURCE_LABEL[source]} · …
                   </span>
                 )
               return (
-                <span key={source} className={`rounded-full px-2 py-0.5 text-[11px] ${STATUS_STYLE[s.status]}`}>
+                <span
+                  key={source}
+                  className={`reif-chip${s.status === 'unconfigured' ? ' line-through' : ''}`}
+                  data-tone={STATUS_TONE[s.status]}
+                  title={STATUS_HINT[s.status] || undefined}
+                >
                   {SOURCE_LABEL[source]}
                   {s.status === 'ok' ? ` · ${s.count}` : ` · ${STATUS_HINT[s.status]}`}
                 </span>
@@ -148,12 +152,12 @@ function PickerDialog({ state }: { state: ImagePickerState }) {
             })}
           </div>
         )}
-        {insertError && <p className="bg-red-50 px-3 py-1.5 text-xs text-red-700">{insertError}</p>}
+        {insertError && <p className="px-3 pb-2 text-tl-danger">{insertError}</p>}
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {!query.trim() && <p className="text-sm text-black/50">Digite o que procura.</p>}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-tl-low p-3">
+          {!query.trim() && <p className="reif-meta pt-6 text-center">Digite o que procura.</p>}
           {query.trim() && hits.length === 0 && (
-            <p className="text-sm text-black/50">{pending.length ? 'Buscando…' : 'Nenhuma imagem encontrada.'}</p>
+            <p className="reif-meta pt-6 text-center">{pending.length ? 'Buscando…' : 'Nenhuma imagem encontrada.'}</p>
           )}
           {hits.length > 0 && (
             <div className="columns-2 gap-3 sm:columns-3 lg:columns-4">
@@ -184,12 +188,13 @@ const ImageTile = memo(function ImageTile({
       type="button"
       disabled={disabled}
       onClick={() => onPick(hit)}
-      className="group relative mb-3 block w-full overflow-hidden rounded-lg bg-black/5 text-left disabled:opacity-60"
+      className="group relative mb-3 block w-full overflow-hidden rounded-tl-2 bg-tl-panel text-left shadow-tl-1 outline-offset-2 hover:outline-2 hover:outline-tl-selected focus-visible:outline-2 focus-visible:outline-tl-focus disabled:opacity-60"
       style={{ aspectRatio: `${hit.width} / ${hit.height}` }}
       title={hit.title}
     >
       <img src={hit.thumb} alt={hit.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2 pt-6 pb-1.5 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+      {/* sobre a foto: legenda clara em degradê (a foto não segue o tema) */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2 pt-6 pb-1.5 text-[11px] text-white opacity-0 transition-opacity duration-100 group-hover:opacity-100">
         <div className="truncate">{hit.title}</div>
         <div className="truncate text-white/70">
           {SOURCE_LABEL[hit.source]}
@@ -197,7 +202,7 @@ const ImageTile = memo(function ImageTile({
           {hit.license ? ` · ${hit.license}` : ''}
         </div>
       </div>
-      {busy && <div className="absolute inset-0 flex items-center justify-center bg-white/60 text-xs">Inserindo…</div>}
+      {busy && <div className="reif-pulse absolute inset-0 flex items-center justify-center bg-tl-panel/70 text-tl-text-1">Inserindo…</div>}
     </button>
   )
 })

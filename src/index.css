@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./ui/tokens.css";
 
 /* Tipografia do painel leitor (sem plugin de typography). */
 .reif-prose { font-size: 15px; line-height: 1.65; max-width: 72ch; margin: 0 auto; overflow-wrap: anywhere; }

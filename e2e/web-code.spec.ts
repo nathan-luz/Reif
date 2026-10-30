@@ -90,15 +90,16 @@ test('link de artigo vira leitura limpa; link de arquivo grande fica só como li
   })
 
   await page.getByTestId('tools.asset').click()
-  await page.getByTestId('media-link').fill('https://blog.exemplo.com/plantas')
-  await page.getByTestId('media-link').press('Enter')
+  await page.getByTestId('media-link').click()
+  await page.getByTestId('media-link-input').fill('https://blog.exemplo.com/plantas')
+  await page.getByTestId('media-link-input').press('Enter')
   const article = cardByName(page, 'Como as plantas respiram')
   await expect(article).toHaveAttribute('data-status', 'ready')
   let reader = await open(page, 'Como as plantas respiram')
   await expect(reader.getByTestId('html-reader')).toContainText('mitocôndrias')
   await expect(reader.getByTestId('html-reader')).not.toContainText('rodapé')
   await expect(reader.locator('img')).toHaveAttribute('src', 'https://blog.exemplo.com/img/folha.png')
-  await expect(reader.getByRole('link', { name: 'Origem ↗' })).toHaveAttribute('href', 'https://blog.exemplo.com/plantas')
+  await expect(reader.getByRole('link', { name: 'Abrir origem' })).toHaveAttribute('href', 'https://blog.exemplo.com/plantas')
   await reader.getByLabel('Fechar').click()
 
   // colar URL de PDF de 45 MB no canvas: só o link
@@ -110,7 +111,7 @@ test('link de artigo vira leitura limpa; link de arquivo grande fica só como li
   await expect(pdf.getByTestId('file-stats')).toHaveText('Link · 45 MB')
   expect(pdfDownloads).toBe(0)
   reader = await open(page, 'livro.pdf')
-  await expect(reader.getByTestId('pdf-reader')).toBeVisible()
+  await expect(reader.getByTestId('pdf-reader')).toBeVisible({ timeout: 15000 }) // baixa o PDF inteiro + análise
   expect(pdfDownloads).toBe(1)
   await expect(pdf.getByTestId('file-stats')).toHaveText('1 página · link')
   await expectNoErrors(errors)

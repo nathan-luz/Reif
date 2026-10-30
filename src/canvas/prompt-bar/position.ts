@@ -1,7 +1,7 @@
 import type { Box } from 'tldraw'
 
 export const BAR_WIDTH = 420
-export const BAR_HEIGHT = 44
+export const BAR_HEIGHT = 40
 const GAP = 12
 const MARGIN = 8
 

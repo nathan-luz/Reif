@@ -13,7 +13,7 @@ export default function CodeReader({ shape, blob }: ReaderProps) {
       alive = false
     }
   }, [blob])
-  if (code === null) return <p className="p-4 text-sm opacity-60">Carregando…</p>
+  if (code === null) return <p className="reif-meta reif-pulse p-4">Carregando…</p>
   return (
     <div className="p-3" data-testid="code-reader">
       <CodeBlock code={code} lang={CODE_LANG[extensionOf(shape.props.name)] ?? 'plaintext'} />

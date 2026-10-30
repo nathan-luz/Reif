@@ -21,6 +21,6 @@ export default function TextReader({ blob, shape }: ReaderProps) {
   }, [blob, isMd])
 
   if (plain !== null) return <pre className="p-5 text-sm leading-relaxed whitespace-pre-wrap">{plain}</pre>
-  if (html === null) return <p className="p-4 text-sm opacity-60">Carregando…</p>
+  if (html === null) return <p className="reif-meta reif-pulse p-4">Carregando…</p>
   return <article className="reif-prose p-6" dangerouslySetInnerHTML={{ __html: html }} />
 }

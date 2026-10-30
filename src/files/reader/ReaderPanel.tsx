@@ -1,5 +1,6 @@
 import { memo, Suspense, useEffect, useRef, useState } from 'react'
-import { stopEventPropagation, useEditor, useValue } from 'tldraw'
+import { stopEventPropagation, TldrawUiIcon, useEditor, useValue } from 'tldraw'
+import { IconButton } from '../../ui/IconButton'
 import { FILE_SHAPE, type FileShape } from '../../shapes/file/types'
 import { hydrateRemote } from '../importer'
 import { getFileBlob } from '../blob'
@@ -54,46 +55,50 @@ function Panel({ shape }: { shape: FileShape }) {
 
   return (
     <aside
-      className="pointer-events-auto absolute top-14 right-2 bottom-16 flex w-[min(760px,48vw)] min-w-[320px] flex-col overflow-hidden rounded-xl border border-[var(--tl-color-muted-2)] bg-[var(--tl-color-panel)] text-[var(--tl-color-text-1)] shadow-2xl"
+      className="reif-panel reif-enter pointer-events-auto absolute top-14 right-2 bottom-16 flex w-[min(760px,48vw)] min-w-[320px] flex-col overflow-hidden"
       onPointerDown={stopEventPropagation}
       onWheel={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.key === 'Escape') closeReader()
       }}
+      aria-label={shape.props.title || shape.props.name}
       data-testid="reader-panel"
     >
-      <header className="flex items-center gap-2 border-b border-[var(--tl-color-muted-2)] px-3 py-2">
-        <span aria-hidden>{KIND_ICON[shape.props.kind]}</span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">{shape.props.title || shape.props.name}</div>
-          <div className="text-[11px] text-[var(--tl-color-text-3)]">
+      <header className="reif-panel-header gap-1 pr-1">
+        <TldrawUiIcon icon={KIND_ICON[shape.props.kind]} label="" small />
+        <div className="min-w-0 flex-1 pl-1">
+          <div className="reif-panel-title truncate">{shape.props.title || shape.props.name}</div>
+          <div className="reif-meta truncate">
             {shape.props.stats} · {formatBytes(shape.props.size)}
           </div>
         </div>
         {shape.props.sourceUrl && (
-          <a className="rounded-md px-2 py-1 text-xs hover:bg-[var(--tl-color-muted-2)]" href={shape.props.sourceUrl} target="_blank" rel="noreferrer">
-            Origem ↗
+          <a
+            className="tlui-button tlui-button__icon"
+            href={shape.props.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Abrir origem"
+            title="Abrir origem"
+          >
+            <TldrawUiIcon icon="external-link" label="" small />
           </a>
         )}
-        <button type="button" onClick={download} disabled={!blob} className="rounded-md px-2 py-1 text-xs hover:bg-[var(--tl-color-muted-2)] disabled:opacity-40">
-          Baixar
-        </button>
-        <button type="button" onClick={closeReader} aria-label="Fechar" className="rounded-md px-2 py-1 text-sm hover:bg-[var(--tl-color-muted-2)]">
-          ✕
-        </button>
+        <IconButton icon="download" label="Baixar" onClick={download} disabled={!blob} />
+        <IconButton icon="cross-2" label="Fechar" onClick={closeReader} />
       </header>
-      <div ref={body} className="min-h-0 flex-1 overflow-y-auto bg-[var(--tl-color-low)]">
+      <div ref={body} className="min-h-0 flex-1 overflow-y-auto bg-tl-low">
         {error ? (
-          <p className="p-4 text-sm text-red-700">{error}</p>
+          <p className="p-4 text-tl-danger">{error}</p>
         ) : !blob ? (
-          <p className="p-4 text-sm opacity-60">{shape.props.status === 'remote' ? 'Baixando…' : 'Carregando…'}</p>
+          <p className="reif-meta reif-pulse p-4">{shape.props.status === 'remote' ? 'Baixando…' : 'Carregando…'}</p>
         ) : Reader ? (
-          <Suspense fallback={<p className="p-4 text-sm opacity-60">Carregando visualizador…</p>}>
+          <Suspense fallback={<p className="reif-meta reif-pulse p-4">Carregando visualizador…</p>}>
             <Reader shape={shape} blob={blob} width={width} />
           </Suspense>
         ) : (
-          <p className="p-4 text-sm opacity-70">Sem visualizador para este formato. Use “Baixar”.</p>
+          <p className="reif-meta p-4">Sem visualizador para este formato. Use “Baixar”.</p>
         )}
       </div>
     </aside>

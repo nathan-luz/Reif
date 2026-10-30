@@ -17,8 +17,8 @@ export default function HtmlReader({ shape, blob }: ReaderProps) {
     }
     return doc.body.innerHTML
   }, [model])
-  if (error) return <p className="p-4 text-sm text-red-700">{error}</p>
-  if (!model) return <p className="p-4 text-sm opacity-60">Preparando leitura…</p>
+  if (error) return <p className="p-4 text-tl-danger">{error}</p>
+  if (!model) return <p className="reif-meta reif-pulse p-4">Preparando leitura…</p>
   return (
     <article className="reif-prose p-6" data-testid="html-reader">
       {shape.props.title && <h1>{shape.props.title}</h1>}

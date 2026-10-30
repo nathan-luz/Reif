@@ -1,5 +1,18 @@
 import { memo, useCallback, useEffect, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent } from 'react'
-import { Box, stopEventPropagation, useEditor, useQuickReactor, useValue } from 'tldraw'
+import {
+  Box,
+  stopEventPropagation,
+  TldrawUiIcon,
+  TldrawUiSelect,
+  TldrawUiSelectContent,
+  TldrawUiSelectItem,
+  TldrawUiSelectTrigger,
+  TldrawUiSelectValue,
+  useEditor,
+  useQuickReactor,
+  useValue,
+} from 'tldraw'
+import { IconButton } from '../../ui/IconButton'
 import { PROVIDERS, ProviderSchema, type Provider } from '../../shared/mutations'
 import type { SubgraphPayload } from '../../shared/subgraph'
 import { extractSubgraph, extractViewportContext } from '../subgraph/extract'
@@ -38,7 +51,7 @@ function saveProvider(p: Provider) {
   }
 }
 
-/** Montado no slot InFrontOfTheCanvas. */
+/** Barra contextual sobre a seleção (montada em ReifOverlays). */
 export const AIPromptBar = memo(function AIPromptBar({ onSubmit }: Props) {
   const mode = usePromptBarMode()
   if (mode === 'hidden') return null
@@ -115,18 +128,23 @@ function PromptBarInner({ onSubmit, mode }: Props & { mode: Exclude<PromptBarMod
     if (open || mode === 'viewport') inputRef.current?.focus()
   }, [open, mode])
 
+  // O dropdown de modelo abre fora do <form> (portal): não conta como "perder o foco".
+  const selectOpen = useRef(false)
   const handleBlur = useCallback(
     (e: FocusEvent<HTMLFormElement>) => {
-      if (!busy && !e.currentTarget.contains(e.relatedTarget as Node | null)) promptBarOpen.set(false)
+      if (busy || selectOpen.current) return
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) promptBarOpen.set(false)
     },
     [busy],
   )
 
-  const handleProvider = useCallback((p: Provider) => {
-    setProvider(p)
-    saveProvider(p)
+  const handleProvider = useCallback((p: string) => {
+    const next = ProviderSchema.catch('gemini').parse(p)
+    setProvider(next)
+    saveProvider(next)
   }, [])
 
+  const notice = error ?? warning
   return (
     <form
       ref={ref}
@@ -136,23 +154,12 @@ function PromptBarInner({ onSubmit, mode }: Props & { mode: Exclude<PromptBarMod
       onPointerUp={stopEventPropagation}
       onWheel={stopEventPropagation}
       style={{ height: BAR_HEIGHT }}
-      className="pointer-events-auto absolute top-0 left-0 flex items-center gap-2 rounded-xl border border-black/10 bg-white/95 px-3 shadow-lg backdrop-blur will-change-transform"
+      className="reif-panel pointer-events-auto absolute top-0 left-0 flex items-center will-change-transform"
       data-testid="ai-prompt-bar"
     >
-      <select
-        value={provider}
-        onChange={(e) => handleProvider(e.target.value as Provider)}
-        onKeyDown={handleKeyDown}
-        disabled={busy}
-        className="bg-transparent text-xs text-black/60 outline-none"
-        aria-label="Modelo"
-      >
-        {PROVIDERS.map((p) => (
-          <option key={p} value={p}>
-            {PROVIDER_LABEL[p]}
-          </option>
-        ))}
-      </select>
+      <span className={`flex shrink-0 pr-2 pl-3 text-tl-text-3 ${busy ? 'reif-pulse' : ''}`}>
+        <TldrawUiIcon icon="reif-sparkle" label="" small />
+      </span>
       <input
         ref={inputRef}
         value={prompt}
@@ -160,24 +167,35 @@ function PromptBarInner({ onSubmit, mode }: Props & { mode: Exclude<PromptBarMod
         onKeyDown={handleKeyDown}
         disabled={busy}
         placeholder={busy ? 'Pensando…' : mode === 'selection' ? 'Transformar seleção…' : 'Desenhar aqui…'}
-        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-black/40"
+        className="h-full min-w-0 flex-1 bg-transparent text-[12px] text-tl-text-1 outline-none placeholder:text-tl-text-3"
         aria-label="Prompt para a seleção"
       />
-      <button
-        type="submit"
-        disabled={busy || !prompt.trim()}
-        className="rounded-md bg-black px-2.5 py-1 text-xs font-medium text-white disabled:opacity-30"
+      <TldrawUiSelect
+        id="reif-provider"
+        value={provider}
+        onValueChange={handleProvider}
+        onOpenChange={(o) => (selectOpen.current = o)}
+        disabled={busy}
+        aria-label="Modelo"
+        data-testid="ai-provider"
       >
-        {busy ? '…' : 'Enviar'}
-      </button>
-      {warning && !error && (
-        <p className="absolute top-full left-0 mt-1 w-full truncate rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800" title={warning}>
-          {warning}
-        </p>
-      )}
-      {error && (
-        <p className="absolute top-full left-0 mt-1 w-full truncate rounded-md bg-red-50 px-2 py-1 text-xs text-red-700" title={error}>
-          {error}
+        <TldrawUiSelectTrigger>
+          <TldrawUiSelectValue placeholder="Modelo" />
+        </TldrawUiSelectTrigger>
+        <TldrawUiSelectContent side="top" align="end">
+          {PROVIDERS.map((p) => (
+            <TldrawUiSelectItem key={p} value={p} label={PROVIDER_LABEL[p]} />
+          ))}
+        </TldrawUiSelectContent>
+      </TldrawUiSelect>
+      <IconButton icon="reif-send" label="Enviar (Enter)" disabled={busy || !prompt.trim()} onClick={() => ref.current?.requestSubmit()} />
+      {notice && (
+        <p
+          role="status"
+          className={`reif-panel reif-enter absolute top-full left-0 mt-2 w-full truncate px-3 py-2 ${error ? 'text-tl-danger' : 'text-tl-warning'}`}
+          title={notice}
+        >
+          {notice}
         </p>
       )}
     </form>

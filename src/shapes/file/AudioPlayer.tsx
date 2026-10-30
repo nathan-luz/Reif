@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { stopEventPropagation, useEditor } from 'tldraw'
+import { ReifIcon } from '../../ui/ReifIcon'
 import { getFileBlob } from '../../files/blob'
 import { formatTime } from '../../shared/video'
 import type { FileShape } from './types'
@@ -120,9 +121,9 @@ export const AudioPlayer = memo(function AudioPlayer({ shape, peaks }: { shape: 
           e.stopPropagation()
           void toggle().catch((err: unknown) => console.error(err))
         }}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tl-color-text-1)] text-[var(--tl-color-panel)]"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tl-text-1 text-tl-panel shadow-tl-1 transition-transform duration-100 active:scale-95"
       >
-        {loading ? '…' : playing ? '❚❚' : '▶'}
+        <ReifIcon name={playing ? 'reif-pause' : 'reif-play'} small style={loading ? { opacity: 0.4 } : playing ? {} : { marginLeft: 2 }} />
       </button>
       <canvas
         ref={canvasRef}
@@ -132,7 +133,7 @@ export const AudioPlayer = memo(function AudioPlayer({ shape, peaks }: { shape: 
         data-testid="audio-wave"
         onDoubleClick={() => editor.select(shape.id)}
       />
-      <span className="w-20 shrink-0 text-right text-xs tabular-nums text-[var(--tl-color-text-3)]">
+      <span className="w-20 shrink-0 text-right reif-meta tabular-nums">
         {formatTime(time)} / {formatTime(duration)}
       </span>
     </div>

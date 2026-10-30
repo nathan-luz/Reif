@@ -1,3 +1,4 @@
+import type { ReifIconName } from '../ui/icons'
 /** Tipos de arquivo suportados, agrupados pelo visualizador que os renderiza. */
 export const FILE_KINDS = [
   'pdf', 'doc', 'epub', 'slides', 'sheet', 'text', 'html', 'notebook', 'code', 'bib', 'audio', 'video',
@@ -62,9 +63,11 @@ export const KIND_LABEL: Record<FileKind, string> = {
   notebook: 'Notebook', code: 'Código', bib: 'Referências', audio: 'Áudio', video: 'Vídeo',
 }
 
-export const KIND_ICON: Record<FileKind, string> = {
-  pdf: '📕', doc: '📄', epub: '📚', slides: '📊', sheet: '🧮', text: '📝', html: '🌐',
-  notebook: '📓', code: '💻', bib: '🔖', audio: '🎧', video: '🎬',
+/** Ícone (set reif-*, ver docs/DESIGN_SYSTEM.md) de cada tipo. */
+export const KIND_ICON: Record<FileKind, ReifIconName> = {
+  pdf: 'reif-file-pdf', doc: 'reif-file-text', epub: 'reif-book', slides: 'reif-slides', sheet: 'reif-table',
+  text: 'reif-file-text', html: 'reif-globe', notebook: 'reif-notebook', code: 'reif-code', bib: 'reif-quote',
+  audio: 'reif-audio', video: 'reif-video',
 }
 
 export function formatBytes(n: number): string {

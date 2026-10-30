@@ -4,6 +4,9 @@ import { components } from './canvas/components'
 import { ExternalContentBridge } from './canvas/ExternalContentBridge'
 import { overrides } from './canvas/overrides'
 import { PromptShortcut } from './canvas/PromptShortcut'
+import { NoticesBridge } from './canvas/notify/NoticesBridge'
+import { ReifOverlays } from './canvas/ReifOverlays'
+import { reifAssetUrls } from './ui/icons'
 import { customShapeUtils } from './shapes'
 import { DesignSystemBridge } from './design-system/DesignSystemBridge'
 import { initialThemes } from './design-system/initialThemes'
@@ -24,12 +27,15 @@ export default function App() {
         components={components}
         overrides={overrides}
         themes={initialThemes}
+        assetUrls={reifAssetUrls}
         onMount={onMount}
         {...(licenseKey ? { licenseKey } : {})}
       >
         <ExternalContentBridge />
         <PromptShortcut />
         <DesignSystemBridge />
+        <NoticesBridge />
+        <ReifOverlays />
       </Tldraw>
     </div>
   )

@@ -30,8 +30,8 @@ export default function PdfReader({ blob, width }: ReaderProps) {
     }
   }, [blob])
 
-  if (error) return <p className="p-4 text-sm text-red-700">{error}</p>
-  if (!doc) return <p className="p-4 text-sm opacity-60">Abrindo PDF…</p>
+  if (error) return <p className="p-4 text-tl-danger">{error}</p>
+  if (!doc) return <p className="reif-meta reif-pulse p-4">Abrindo PDF…</p>
   return (
     <div className="flex flex-col items-center gap-3 py-3" data-testid="pdf-reader">
       {Array.from({ length: doc.numPages }, (_, i) => (

@@ -1,33 +1,21 @@
 import type { TLUiOverrides } from 'tldraw'
-import { importFromUrl } from '../files/importer'
-import { MediaChooserDialog } from './media/MediaChooserDialog'
+import { toggleInsertMenu } from './insert/state'
 import { pickFiles } from './media/pickFiles'
-import { RecorderDialog } from './media/RecorderDialog'
 import { translations } from './translations'
 
 /** Referência estável (nível de módulo) passada ao <Tldraw overrides>. */
 export const overrides: TLUiOverrides = {
   translations,
-  tools(editor, tools, helpers) {
+  tools(_editor, tools) {
     const asset = tools['asset']
     if (!asset) return tools
-    return {
-      ...tools,
-      asset: {
-        ...asset,
-        onSelect() {
-          helpers.addDialog({
-            component: ({ onClose }) => (
-              <MediaChooserDialog
-                onClose={onClose}
-                onUpload={() => pickFiles(editor)}
-                onRecord={() => helpers.addDialog({ component: RecorderDialog })}
-                onLink={(url) => void importFromUrl(editor, url)}
-              />
-            ),
-          })
-        },
-      },
-    }
+    // "Mídia" vira "Inserir": ícone de upload e popover com upload, imagem da web, gravação e link.
+    return { ...tools, asset: { ...asset, icon: 'reif-upload', onSelect: toggleInsertMenu } }
+  },
+  actions(editor, actions) {
+    const insertMedia = actions['insert-media']
+    if (!insertMedia) return actions
+    // "Upload media…" (menu principal / Ctrl+U): seletor que aceita todos os formatos.
+    return { ...actions, 'insert-media': { ...insertMedia, onSelect: () => pickFiles(editor) } }
   },
 }

@@ -10,7 +10,7 @@ test('gravar áudio pelo microfone vira cartão de áudio', async ({ page }) => 
   const { errors } = await openCanvas(page)
   await page.getByTestId('tools.asset').click()
   await page.getByTestId('media-record').click()
-  await page.getByTestId('record-start').click()
+  await expect(page.getByTestId('recorder')).toContainText('0:0')
   await page.waitForTimeout(1500)
   await page.getByTestId('record-stop').click()
   const card = page.locator('[data-testid="file-card"][data-kind="audio"]')

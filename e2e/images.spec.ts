@@ -4,7 +4,7 @@ import { expectNoErrors, openCanvas } from './helpers'
 // PNG 1x1 transparente
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64')
 
-test('ferramenta Mídia: "Buscar na web" → resultados progressivos → imagem inserida com crédito', async ({ page }) => {
+test('ferramenta Inserir: "Buscar imagem na web" → resultados progressivos → imagem inserida com crédito', async ({ page }) => {
   const { errors } = await openCanvas(page)
   await page.route('**/api/images/search**', (route) => {
     const source = new URL(route.request().url()).searchParams.get('source')
@@ -41,7 +41,7 @@ test('ferramenta Mídia: "Buscar na web" → resultados progressivos → imagem 
   await expectNoErrors(errors)
 })
 
-test('"Fazer upload" mantém o seletor de arquivos nativo', async ({ page }) => {
+test('"Enviar arquivo" mantém o seletor de arquivos nativo', async ({ page }) => {
   await openCanvas(page)
   await page.getByTestId('tools.asset').click()
   const chooser = page.waitForEvent('filechooser')

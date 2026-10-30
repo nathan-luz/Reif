@@ -1,26 +1,29 @@
 import { useCallback } from 'react'
 import { useEditor, type TLShapeId } from 'tldraw'
-import { requestTransform } from './ai/client'
-import { ReaderPanel } from '../files/reader/ReaderPanel'
-import { ImagePicker } from './image-picker/ImagePicker'
-import { Notices } from './notify/Notices'
-import { Overlay } from './Overlay'
-import { openImagePicker } from './image-picker/state'
-import { applyPlan } from './mutations/apply'
-import { IMAGE_SLOT_SHAPE } from '../shapes/image-slot/types'
 import { currentDesignSystem } from '../design-system/state'
 import { attachmentsFor } from '../files/ai'
+import { ReaderPanel } from '../files/reader/ReaderPanel'
+import { IMAGE_SLOT_SHAPE } from '../shapes/image-slot/types'
+import { requestTransform } from './ai/client'
+import { ImagePicker } from './image-picker/ImagePicker'
+import { openImagePicker } from './image-picker/state'
+import { InsertPopover } from './insert/InsertPopover'
+import { applyPlan } from './mutations/apply'
+import { Overlay } from './Overlay'
 import { AIPromptBar, type PromptSubmitHandler } from './prompt-bar/AIPromptBar'
 
-export function InFrontOfTheCanvas() {
+/**
+ * Sobreposições do Reif. Montadas como filhas do <Tldraw> (dentro do contexto de UI:
+ * botões, tooltips, selects e toasts nativos funcionam) e portadas para .reif-overlay.
+ */
+export function ReifOverlays() {
   const editor = useEditor()
 
   const handlePrompt = useCallback<PromptSubmitHandler>(
     async ({ prompt, payload, provider }) => {
       const ds = currentDesignSystem()
-      const attachments = payload.nodes.some((n) => n.type === 'file')
-        ? await attachmentsFor(editor, payload.nodes.filter((n) => n.type === 'file').map((n) => n.id as TLShapeId))
-        : []
+      const fileIds = payload.nodes.filter((n) => n.type === 'file').map((n) => n.id as TLShapeId)
+      const attachments = fileIds.length ? await attachmentsFor(editor, fileIds) : []
       const { plan, warnings } = await requestTransform({
         prompt,
         provider,
@@ -38,13 +41,11 @@ export function InFrontOfTheCanvas() {
   )
 
   return (
-    <>
+    <Overlay>
       <AIPromptBar onSubmit={handlePrompt} />
-      <Overlay>
-        <ImagePicker />
-        <ReaderPanel />
-        <Notices />
-      </Overlay>
-    </>
+      <InsertPopover />
+      <ReaderPanel />
+      <ImagePicker />
+    </Overlay>
   )
 }

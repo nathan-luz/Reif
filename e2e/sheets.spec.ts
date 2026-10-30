@@ -44,7 +44,7 @@ test('CSV grande, XLSX com abas, TSV e JSON: prévia no cartão e grade virtuali
   await reader.getByLabel('Fechar').click()
 
   reader = await open(page, 'notas.xlsx')
-  await reader.getByRole('button', { name: 'Frequência' }).click()
+  await reader.getByRole('tab', { name: 'Frequência' }).click()
   await expect(reader.locator('[data-row="0"]')).toContainText('sim')
   await expectNoErrors(errors)
 })

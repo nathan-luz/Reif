@@ -5,8 +5,8 @@ import { useModel } from './useModel'
 
 export default function SlidesReader({ shape, blob }: ReaderProps) {
   const { model, error } = useModel<SlidesModel>(shape, blob)
-  if (error) return <p className="p-4 text-sm text-red-700">{error}</p>
-  if (!model) return <p className="p-4 text-sm opacity-60">Preparando slides…</p>
+  if (error) return <p className="p-4 text-tl-danger">{error}</p>
+  if (!model) return <p className="reif-meta reif-pulse p-4">Preparando slides…</p>
   return (
     <div className="flex flex-col gap-4 p-4" data-testid="slides-reader">
       {model.slides.map((s, i) => (

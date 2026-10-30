@@ -85,7 +85,7 @@ async function analyze(editor: Editor, id: TLShapeId, blob: Blob) {
 async function warnIfStorageLow() {
   const s = await checkStorage().catch(() => null)
   if (s && s.quota && s.usage / s.quota > 0.8) {
-    notify(`Armazenamento local em ${Math.round((s.usage / s.quota) * 100)}%: considere remover arquivos grandes.`, 'warning', 8000)
+    notify(`Armazenamento local em ${Math.round((s.usage / s.quota) * 100)}%: considere remover arquivos grandes.`, 'warning')
   }
 }
 
@@ -97,7 +97,7 @@ function accept(name: string, mime: string, size: number): FileKind | null {
     return null
   }
   if (size > MAX_SIZE[kind]) {
-    notify(`${name} tem ${formatBytes(size)}; o limite para ${KIND_LABEL[kind]} é ${formatBytes(MAX_SIZE[kind])}.`, 'error', 8000)
+    notify(`${name} tem ${formatBytes(size)}; o limite para ${KIND_LABEL[kind]} é ${formatBytes(MAX_SIZE[kind])}.`, 'error')
     return null
   }
   return kind
@@ -181,7 +181,7 @@ export async function importFromUrl(editor: Editor, url: string, point?: VecLike
       stats: `Link · ${formatBytes(info.size)}`,
     })
     editor.select(id)
-    notify(`${name} tem ${formatBytes(info.size)}: guardei só o link. Ele é baixado quando você abrir.`, 'info', 7000)
+    notify(`${name} tem ${formatBytes(info.size)}: guardei só o link. Ele é baixado quando você abrir.`, 'info')
     return id
   } catch (err) {
     notify(err instanceof Error ? err.message : String(err), 'error')

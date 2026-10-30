@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { derivedKey } from '../../files/blob'
 import { formatBytes, KIND_ICON, KIND_LABEL } from '../../files/kinds'
 import { useDerivedValue, useThumbUrl } from '../../files/useDerived'
+import { ReifIcon } from '../../ui/ReifIcon'
 import { AudioPlayer } from './AudioPlayer'
 import { FileActions } from './FileActions'
 import type { FileShape } from './types'
@@ -22,15 +23,17 @@ export const FileCardView = memo(function FileCardView({ shape }: { shape: FileS
       thumb ? (
         <img src={thumb} alt="" draggable={false} className="h-full w-full object-contain object-top" />
       ) : (
-        <div className="flex h-full items-center justify-center text-5xl opacity-40">{KIND_ICON[kind]}</div>
+        <div className="flex h-full items-center justify-center text-tl-text-3">
+          <ReifIcon name={KIND_ICON[kind]} style={{ width: 40, height: 40, opacity: 0.6 }} />
+        </div>
       )
     ) : kind === 'sheet' && excerpt ? (
-      <table className="w-full table-fixed border-collapse font-mono text-[10px] text-[var(--tl-color-text-1)]">
+      <table className="w-full table-fixed border-collapse font-mono text-[10px] text-tl-text-1">
         <tbody>
           {excerpt.split('\n').map((line, r) => (
             <tr key={r} className={r === 0 ? 'font-semibold' : ''}>
               {line.split('\t').map((c, i) => (
-                <td key={i} className="truncate border-b border-[var(--tl-color-muted-2)] px-2 py-1">
+                <td key={i} className="truncate border-b border-tl-divider px-2 py-1">
                   {c}
                 </td>
               ))}
@@ -40,7 +43,7 @@ export const FileCardView = memo(function FileCardView({ shape }: { shape: FileS
       </table>
     ) : (
       <p
-        className={`h-full overflow-hidden px-3 pt-2 text-[11px] leading-snug whitespace-pre-wrap text-[var(--tl-color-text-1)] ${
+        className={`h-full overflow-hidden px-3 pt-2 text-[11px] leading-snug whitespace-pre-wrap text-tl-text-1 ${
           kind === 'code' || kind === 'bib' || kind === 'sheet' ? 'font-mono' : ''
         }`}
       >
@@ -50,27 +53,36 @@ export const FileCardView = memo(function FileCardView({ shape }: { shape: FileS
 
   return (
     <div
-      className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-[var(--tl-color-muted-2)] bg-[var(--tl-color-panel)] shadow-sm select-none"
+      className="reif-card select-none"
       data-testid="file-card"
       data-kind={kind}
       data-status={status}
     >
-      <div className="flex items-center gap-2 border-b border-[var(--tl-color-muted-2)] px-3 py-2">
-        <span aria-hidden>{KIND_ICON[kind]}</span>
-        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[var(--tl-color-text-1)]" title={name}>
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-tl-divider px-2.5">
+        <ReifIcon name={KIND_ICON[kind]} small />
+        <span className="min-w-0 flex-1 truncate font-semibold text-tl-text-0" title={name}>
           {title || name}
         </span>
-        <span className="text-[10px] tracking-wide text-[var(--tl-color-text-3)] uppercase">{KIND_LABEL[kind]}</span>
+        <span className="reif-chip" data-tone="muted">{KIND_LABEL[kind]}</span>
       </div>
-      <div className="relative min-h-0 flex-1 bg-[var(--tl-color-low)]">
+      <div className="relative min-h-0 flex-1 bg-tl-low">
         {body}
         <FileActions shape={shape} />
       </div>
-      <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[10px] text-[var(--tl-color-text-3)]">
+      <div className="reif-meta flex h-7 shrink-0 items-center justify-between gap-2 border-t border-tl-divider px-2.5">
         <span className="truncate" data-testid="file-stats">
-          {status === 'analyzing' ? 'Analisando…' : stats}
+          {status === 'analyzing' ? <span className="reif-pulse">Analisando…</span> : stats}
         </span>
-        <span className="shrink-0">{status === 'remote' ? '🔗 link' : formatBytes(size)}</span>
+        <span className="flex shrink-0 items-center gap-1">
+          {status === 'remote' ? (
+            <>
+              <ReifIcon name="reif-link" small style={{ width: 12, height: 12 }} />
+              link
+            </>
+          ) : (
+            formatBytes(size)
+          )}
+        </span>
       </div>
     </div>
   )

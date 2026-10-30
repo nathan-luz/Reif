@@ -1,5 +1,7 @@
 import { memo, useState } from 'react'
-import { stopEventPropagation, useEditor, useValue } from 'tldraw'
+import { useEditor, useValue } from 'tldraw'
+import { ReifIcon } from '../../ui/ReifIcon'
+import { ShapeError, ShapeToolbar } from '../shared/ShapeToolbar'
 import { runVideoAction, videoJobs } from '../../canvas/video/actions'
 import type { YouTubeShape } from './types'
 import { embedUrl, thumbnailUrl } from './youtube-url'
@@ -46,14 +48,14 @@ export const YouTubeView = memo(function YouTubeView({ shape }: { shape: YouTube
         allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
         allowFullScreen
         referrerPolicy="strict-origin-when-cross-origin"
-        className="block rounded-lg border-0 bg-black"
+        className="block rounded-tl-2 border-0 bg-black"
         style={{ pointerEvents: isEditing ? 'all' : 'none' }}
       />
     )
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg bg-black select-none">
+    <div className="relative h-full w-full overflow-hidden rounded-tl-2 bg-black select-none">
       {videoId && (
         <img
           src={thumbnailUrl(videoId)}
@@ -65,41 +67,23 @@ export const YouTubeView = memo(function YouTubeView({ shape }: { shape: YouTube
         />
       )}
       <div className="absolute inset-0 flex items-center justify-center">
-        <svg width="68" height="48" viewBox="0 0 68 48" aria-hidden>
-          <path d="M66.5 7.7a8.5 8.5 0 0 0-6-6C55.2.3 34 .3 34 .3s-21.2 0-26.5 1.4a8.5 8.5 0 0 0-6 6C.1 13 .1 24 .1 24s0 11 1.4 16.3a8.5 8.5 0 0 0 6 6C12.8 47.7 34 47.7 34 47.7s21.2 0 26.5-1.4a8.5 8.5 0 0 0 6-6C67.9 35 67.9 24 67.9 24s0-11-1.4-16.3Z" fill="#f00" />
-          <path d="M45 24 27 14v20" fill="#fff" />
-        </svg>
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white shadow-tl-2 backdrop-blur-sm">
+          <ReifIcon name="reif-play" style={{ marginLeft: 2 }} />
+        </div>
       </div>
-      {videoId && (isFocused || job) && (
-        <div className="absolute top-2 right-2 flex gap-1.5" style={{ pointerEvents: 'all' }}>
-          {job?.status === 'running' ? (
-            <span className="rounded-md bg-black/75 px-2 py-1 text-xs text-white">
-              {job.kind === 'transcript' ? 'Transcrevendo…' : 'Resumindo…'}
-            </span>
-          ) : (
-            (['transcript', 'summary'] as const).map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                onPointerDown={stopEventPropagation}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  void runVideoAction(editor, shape, kind)
-                }}
-                className="rounded-md bg-black/75 px-2 py-1 text-xs font-medium text-white hover:bg-black"
-                data-testid={`yt-${kind}`}
-              >
-                {kind === 'transcript' ? '📝 Transcrever' : '✨ Resumo'}
-              </button>
-            ))
-          )}
-        </div>
+      {videoId && (isFocused || job?.status === 'running') && (
+        <ShapeToolbar
+          running={job?.status === 'running' ? (job.kind === 'transcript' ? 'Transcrevendo…' : 'Resumindo…') : undefined}
+          actions={(['transcript', 'summary'] as const).map((kind) => ({
+            id: kind,
+            icon: kind === 'transcript' ? 'reif-transcript' : 'reif-sparkle',
+            label: kind === 'transcript' ? 'Transcrever' : 'Resumo',
+            testId: `yt-${kind}`,
+            onRun: () => void runVideoAction(editor, shape, kind),
+          }))}
+        />
       )}
-      {job?.status === 'error' && (
-        <div className="absolute inset-x-2 top-12 rounded-md bg-red-600/90 px-2 py-1 text-xs text-white" title={job.message}>
-          <span className="line-clamp-2">{job.message}</span>
-        </div>
-      )}
+      {job?.status === 'error' && <ShapeError message={job.message} className="inset-x-2 top-14" />}
       {title && (
         <div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-3 pt-6 pb-2 text-sm text-white">
           {title}

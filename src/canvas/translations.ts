@@ -1,6 +1,8 @@
 import { DESIGN_SYSTEMS } from '../shared/design-systems'
 
 const pt: Record<string, string> = {
+  'tool.media': 'Inserir',
+  'action.insert-media': 'Enviar arquivo…',
   'reif.design-system': 'Design system',
   ...Object.fromEntries(DESIGN_SYSTEMS.map((ds) => [`reif.ds.${ds.id}`, ds.name])),
   'color-style.ds-primary': 'Primária (design system)',

@@ -45,7 +45,7 @@ test('DOCX, ODT, RTF, EPUB, PPTX e ODP: cartões e leitores', async ({ page }) =
   reader = await open(page, 'Dom Casmurro')
   await expect(reader.getByTestId('doc-reader').locator('article h1')).toHaveText('Do título')
   await expect(reader.locator('article img')).toHaveAttribute('src', /^data:image\/png/)
-  await reader.getByLabel('Capítulo').selectOption('1')
+  await reader.getByRole('button', { name: 'Próximo capítulo' }).click()
   await expect(reader.locator('article h1')).toHaveText('Do livro')
   await reader.getByLabel('Fechar').click()
 

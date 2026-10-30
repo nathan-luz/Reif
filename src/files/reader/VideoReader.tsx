@@ -16,7 +16,7 @@ export default function VideoReader({ blob }: ReaderProps) {
   }, [blob])
   return (
     <div className="p-3" data-testid="video-reader">
-      <video ref={ref} controls className="w-full rounded-lg bg-black" />
+      <video ref={ref} controls className="w-full rounded-tl-2 bg-black" />
     </div>
   )
 }

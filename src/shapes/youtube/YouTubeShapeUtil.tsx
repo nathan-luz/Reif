@@ -38,7 +38,7 @@ export class YouTubeShapeUtil extends BaseBoxShapeUtil<YouTubeShape> {
 
   override getIndicatorPath(shape: YouTubeShape) {
     const path = new Path2D()
-    path.roundRect(0, 0, shape.props.w, shape.props.h, 8)
+    path.roundRect(0, 0, shape.props.w, shape.props.h, 6)
     return path
   }
 }

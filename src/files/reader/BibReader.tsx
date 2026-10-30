@@ -5,8 +5,8 @@ import { useModel } from './useModel'
 
 export default function BibReader({ shape, blob }: ReaderProps) {
   const { model, error } = useModel<BibModel>(shape, blob)
-  if (error) return <p className="p-4 text-sm text-red-700">{error}</p>
-  if (!model) return <p className="p-4 text-sm opacity-60">Lendo referências…</p>
+  if (error) return <p className="p-4 text-tl-danger">{error}</p>
+  if (!model) return <p className="reif-meta reif-pulse p-4">Lendo referências…</p>
   return (
     <ol className="flex list-decimal flex-col gap-3 py-4 pr-5 pl-10 text-sm" data-testid="bib-reader">
       {model.entries.map((e) => {
@@ -19,7 +19,7 @@ export default function BibReader({ shape, blob }: ReaderProps) {
             {url && (
               <>
                 {' '}
-                <a className="text-[var(--tl-color-selected)] underline" href={url} target="_blank" rel="noopener noreferrer">
+                <a className="text-tl-selected underline" href={url} target="_blank" rel="noopener noreferrer">
                   {doi ? 'DOI' : 'link'}
                 </a>
               </>
