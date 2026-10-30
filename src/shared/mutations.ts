@@ -58,12 +58,38 @@ export const CreateNodeSchema = z.object({
   frame: z.string().optional().describe('ref de um frame criado neste plano para conter este nó'),
   query: z.string().optional().describe('youtube/image: termos de busca precisos para encontrar o vídeo ou a imagem.'),
 })
+
+// ── Layout (posições calculadas no canvas, não pelo LLM) ──────────────────
+export const LAYOUT_TYPES = ['free', 'mindmap', 'tree', 'flow', 'radial', 'cycle', 'timeline', 'columns', 'grid'] as const
+export type LayoutType = (typeof LAYOUT_TYPES)[number]
+export const LAYOUT_DIRECTIONS = ['down', 'right'] as const
+
+export const LayoutSchema = z.object({
+  type: z
+    .enum(LAYOUT_TYPES)
+    .describe(
+      'Como o canvas posiciona os nós criados. free = usa x/y do plano (gráficos, ilustrações). ' +
+        'mindmap = raiz no centro, ramos à esquerda/direita. tree = hierarquia arrumada. flow = camadas de um grafo dirigido ' +
+        '(fluxogramas, mapas conceituais, cadeias causais). radial = hub-and-spoke em anéis. cycle = nós em círculo na ordem das setas. ' +
+        'timeline = sequência ordenada. columns = frames lado a lado com filhos empilhados (comparação, categorias). grid = cartões em grade.',
+    ),
+  root: z.string().optional().describe('mindmap/tree/radial/cycle: ref (ou id existente) do nó central/raiz'),
+  direction: z.enum(LAYOUT_DIRECTIONS).optional().describe('tree/flow/timeline: down (padrão p/ tree e flow) ou right'),
+  columns: z.number().optional().describe('grid: número de colunas (1-8)'),
+  branchColors: z
+    .boolean()
+    .optional()
+    .describe('mindmap/radial/tree: uma cor por ramo de 1º nível, herdada pelos descendentes e pelas ligações'),
+})
+export type Layout = z.infer<typeof LayoutSchema>
 export type CreateNode = z.infer<typeof CreateNodeSchema>
 
 export const ConnectSchema = z.object({
   from: z.string().describe('id existente ou ref de nó criado'),
   to: z.string().describe('id existente ou ref de nó criado'),
-  label: z.string().optional(),
+  label: z.string().optional().describe('Frase de ligação curta (1-4 palavras), ex.: "causa", "é parte de"'),
+  arrow: z.enum(['end', 'none', 'both']).optional().describe('Pontas: end (padrão), none (ligação/hierarquia), both (mútua)'),
+  dashed: z.boolean().optional().describe('Relação fraca, indireta, opcional ou futura'),
 })
 export type Connect = z.infer<typeof ConnectSchema>
 
@@ -78,11 +104,16 @@ export type Update = z.infer<typeof UpdateSchema>
 
 /** Plano como o LLM o produz (sem mídia resolvida). */
 export const LLMPlanSchema = z.object({
+  design: z
+    .string()
+    .default('')
+    .describe('ANTES do resto: 1-3 frases curtas — estrutura do conhecimento, tipo de diagrama escolhido e por quê, o que é central'),
   summary: z.string().describe('Uma frase curta descrevendo a mudança, no idioma do usuário'),
   delete: z.array(z.string()).describe('ids de nós/arestas existentes a remover'),
   update: z.array(UpdateSchema),
   create: z.array(CreateNodeSchema),
   connect: z.array(ConnectSchema).describe('Setas novas entre nós'),
+  layout: LayoutSchema.default({ type: 'free' }),
 })
 export type LLMPlan = z.infer<typeof LLMPlanSchema>
 
@@ -124,6 +155,9 @@ export function sanitizePlan(plan: LLMPlan, subgraph: SubgraphPayload): LLMPlan 
   const seenRefs = new Set<string>()
   const create = plan.create.flatMap((c): CreateNode[] => {
     if (known.has(c.ref) || seenRefs.has(c.ref)) return []
+    // Modelos às vezes mandam w/h = 0 em vez de omitir (layouts automáticos): trata como ausente.
+    if (c.w !== undefined && c.w <= 0) c = (({ w: _w, ...rest }) => rest)(c)
+    if (c.h !== undefined && c.h <= 0) c = (({ h: _h, ...rest }) => rest)(c)
     if (needsPoints(c.kind)) {
       if (c.points.length < 2) return []
       c = { ...c, points: c.points.slice(0, MAX_POINTS) }
@@ -140,12 +174,16 @@ export function sanitizePlan(plan: LLMPlan, subgraph: SubgraphPayload): LLMPlan 
   const del = [...new Set(plan.delete.filter((id) => known.has(id)))]
   const deleted = new Set(del)
   const alive = (id: string) => (known.has(id) && !deleted.has(id)) || seenRefs.has(id)
+  const layout = { ...plan.layout }
+  if (layout.root !== undefined && !alive(layout.root)) delete layout.root
   return {
+    design: plan.design,
     summary: plan.summary,
     delete: del,
     update: plan.update.filter((u) => known.has(u.id) && !deleted.has(u.id)),
     create: createWithFrames,
     connect: plan.connect.filter((c) => c.from !== c.to && alive(c.from) && alive(c.to)),
+    layout,
   }
 }
 

@@ -60,7 +60,7 @@ app.post('/api/transform', async (c) => {
 
   try {
     const raw = await provider.generate({
-      system: buildSystemPrompt(req.designSystem),
+      system: buildSystemPrompt(req),
       user: buildUserMessage(req),
       schema: PLAN_JSON_SCHEMA,
     })

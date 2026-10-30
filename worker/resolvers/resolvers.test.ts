@@ -5,6 +5,8 @@ import { resolvePlan } from './index'
 afterEach(() => vi.unstubAllGlobals())
 
 const plan: LLMPlan = {
+  design: '',
+  layout: { type: 'free' },
   summary: 's',
   delete: [],
   update: [],

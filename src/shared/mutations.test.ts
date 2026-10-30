@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { LLMPlanSchema, sanitizePlan, stripEmptyOptionals, type CreateNode, type LLMPlan } from './mutations'
 import type { SubgraphPayload } from './subgraph'
 
@@ -13,7 +14,7 @@ const subgraph: SubgraphPayload = {
 }
 
 const node = (over: Partial<CreateNode>): CreateNode => ({ ref: 'n1', kind: 'note', text: 'x', x: 0, y: 0, points: [], ...over })
-const plan = (over: Partial<LLMPlan>): LLMPlan => ({ summary: 's', delete: [], update: [], create: [], connect: [], ...over })
+const plan = (over: Partial<LLMPlan>): LLMPlan => ({ design: '', layout: { type: 'free' }, summary: 's', delete: [], update: [], create: [], connect: [], ...over })
 
 describe('sanitizePlan', () => {
   it('descarta ids fora da seleção em delete/update', () => {
@@ -83,5 +84,13 @@ describe('stripEmptyOptionals', () => {
   it('o resultado passa no schema do LLM', () => {
     const raw = { summary: 'ok', delete: [], update: [], connect: [], create: [{ ref: 'n1', kind: 'geo', text: 'A', x: 0, y: 0, points: [], role: '', color: '' }] }
     expect(LLMPlanSchema.safeParse(stripEmptyOptionals(raw)).success).toBe(true)
+  })
+})
+
+describe('LLMPlanSchema → JSON Schema', () => {
+  it('não usa restrições numéricas/de tamanho que o structured output do Claude rejeita', () => {
+    const json = JSON.stringify(z.toJSONSchema(LLMPlanSchema))
+    for (const k of ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength'])
+      expect(json, k).not.toContain(`"${k}"`)
   })
 })

@@ -31,7 +31,7 @@ export function footprint(c: ResolvedCreateNode): Rect {
     case 'note':
       return { x: c.x, y: c.y, ...NOTE }
     case 'text':
-      return { x: c.x, y: c.y, ...TEXT }
+      return { x: c.x, y: c.y, w: c.w ?? TEXT.w, h: c.h ?? TEXT.h }
     case 'youtube':
       return { x: c.x, y: c.y, ...YOUTUBE_DEFAULT_SIZE }
     case 'geo':
@@ -55,6 +55,8 @@ export interface Placement {
   dx: number
   /** Frame pai (id e posição de página) se o nó estiver dentro de um frame. */
   parent?: { id: TLShapeId; x: number; y: number }
+  /** Alinhamento do texto (só kind text). */
+  align?: 'start' | 'middle' | 'end' | undefined
 }
 
 /** Converte coordenadas de página em locais ao pai (frames não rotacionados). */
@@ -85,8 +87,10 @@ export function styleFor(
   }
 }
 
-const styleOf = (c: ResolvedCreateNode, type: string, ds: DesignSystem) =>
-  styleFor(ds, type, c.role ?? defaultRoleFor(c.kind, c.size), {
+export const roleOf = (c: ResolvedCreateNode): StyleRole => c.role ?? defaultRoleFor(c.kind, c.size)
+
+export const styleOf = (c: ResolvedCreateNode, type: string, ds: DesignSystem) =>
+  styleFor(ds, type, roleOf(c), {
     color: c.color,
     fill: c.fill,
     dash: c.dash,
@@ -110,7 +114,10 @@ export function buildCreate(c: ResolvedCreateNode, p: Placement): TLShapePartial
     }
     case 'text': {
       const { props, meta } = styleOf(c, 'text', p.ds)
-      return { ...base, type: 'text', ...pos, meta, props: { richText, autoSize: true, ...props } } as TLShapePartial<TLTextShape>
+      // Largura definida (layout) → quebra de linha dentro dela; senão cresce com o texto.
+      const sizing = c.w ? { autoSize: false, w: c.w } : { autoSize: true }
+      const align = p.align ? { textAlign: p.align } : {}
+      return { ...base, type: 'text', ...pos, meta, props: { richText, ...sizing, ...align, ...props } } as TLShapePartial<TLTextShape>
     }
     case 'geo': {
       const { w, h } = footprint(c)

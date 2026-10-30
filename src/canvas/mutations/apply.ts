@@ -9,11 +9,13 @@ import {
   type TLShapePartial,
 } from 'tldraw'
 import type { DesignSystem } from '../../shared/design-systems'
-import type { MutationPlan, Update } from '../../shared/mutations'
+import type { MutationPlan, ResolvedCreateNode, Update } from '../../shared/mutations'
 import { withSystemWrite } from '../../design-system/styling'
 import type { SubgraphPayload } from '../../shared/subgraph'
 import { buildCreate, footprint, styleFor, type Placement } from './build'
 import { groupOffset, type Rect } from './placement'
+import { arrangePlan } from './arrange'
+import { edgeStyle } from './layout'
 
 const asId = (id: string) => id as TLShapeId
 
@@ -31,19 +33,76 @@ function buildUpdate(shape: TLShape, u: Update): TLShapePartial {
   } as TLShapePartial
 }
 
-export function connect(editor: Editor, ds: DesignSystem, from: TLShapeId, to: TLShapeId, label?: string) {
+export interface ConnectStyle {
+  label?: string | undefined
+  kind?: 'arc' | 'elbow'
+  arrow?: 'end' | 'none' | 'both' | undefined
+  dashed?: boolean | undefined
+  bend?: number
+  color?: string | undefined
+  /** Âncoras normalizadas (0..1) nas bordas: conectores ortogonais limpos em árvores e fluxos. */
+  anchors?: { start: { x: number; y: number }; end: { x: number; y: number } } | undefined
+}
+
+export function connect(editor: Editor, ds: DesignSystem, from: TLShapeId, to: TLShapeId, style: ConnectStyle = {}) {
   const id = createShapeId()
-  const { props, meta } = styleFor(ds, 'arrow', 'connector')
+  const { props, meta } = styleFor(ds, 'arrow', 'connector', { dash: style.dashed ? 'dashed' : undefined, color: style.color })
+  const arrow = style.arrow ?? 'end'
   editor.createShape({
     id, type: 'arrow', x: 0, y: 0, meta, parentId: editor.getCurrentPageId(),
-    props: { start: { x: 0, y: 0 }, end: { x: 1, y: 1 }, ...props, ...(label ? { richText: toRichText(label) } : {}) },
+    props: {
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 1 },
+      ...props,
+      kind: style.kind ?? 'arc',
+      bend: style.bend ?? 0,
+      arrowheadStart: arrow === 'both' ? 'arrow' : 'none',
+      arrowheadEnd: arrow === 'none' ? 'none' : 'arrow',
+      ...(style.label ? { richText: toRichText(style.label) } : {}),
+    },
   } as TLShapePartial<TLArrowShape>)
-  const anchor = { normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false }
+  const anchor = (a?: { x: number; y: number }) => ({ normalizedAnchor: a ?? { x: 0.5, y: 0.5 }, isExact: false, isPrecise: Boolean(a) })
   editor.createBindings<TLArrowBinding>([
-    { type: 'arrow', fromId: id, toId: from, props: { terminal: 'start', ...anchor } },
-    { type: 'arrow', fromId: id, toId: to, props: { terminal: 'end', ...anchor } },
+    { type: 'arrow', fromId: id, toId: from, props: { terminal: 'start', ...anchor(style.anchors?.start) } },
+    { type: 'arrow', fromId: id, toId: to, props: { terminal: 'end', ...anchor(style.anchors?.end) } },
   ])
   return id
+}
+
+/** Arco "para fora" entre nós consecutivos de um ciclo (círculo visual). */
+function cycleBend(editor: Editor, from: TLShapeId, to: TLShapeId): number {
+  const a = editor.getShapePageBounds(from)
+  const b = editor.getShapePageBounds(to)
+  if (!a || !b) return 0
+  return -Math.hypot(b.center.x - a.center.x, b.center.y - a.center.y) * 0.18
+}
+
+/** Bend do arco do tldraw para que a curva passe por `via` (bend > 0 curva para a normal esquerda). */
+function bendThrough(editor: Editor, from: TLShapeId, to: TLShapeId, via: { x: number; y: number }): number {
+  const a = editor.getShapePageBounds(from)?.center
+  const b = editor.getShapePageBounds(to)?.center
+  if (!a || !b) return 0
+  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1
+  const nx = -(b.y - a.y) / len
+  const ny = (b.x - a.x) / len
+  const d = (via.x - (a.x + b.x) / 2) * nx + (via.y - (a.y + b.y) / 2) * ny
+  return Math.abs(d) < 4 ? 0 : d
+}
+
+const axisOf = (type: string, direction?: string): 'x' | 'y' =>
+  type === 'mindmap' || direction === 'right' ? 'x' : 'y'
+
+/** Sai pela borda voltada ao destino e entra pela borda oposta (eixo principal do layout). */
+function sideAnchors(editor: Editor, from: TLShapeId, to: TLShapeId, axis: 'x' | 'y') {
+  const a = editor.getShapePageBounds(from)
+  const b = editor.getShapePageBounds(to)
+  if (!a || !b) return undefined
+  if (axis === 'x') {
+    const right = b.center.x >= a.center.x
+    return { start: { x: right ? 1 : 0, y: 0.5 }, end: { x: right ? 0 : 1, y: 0.5 } }
+  }
+  const down = b.center.y >= a.center.y
+  return { start: { x: 0.5, y: down ? 1 : 0 }, end: { x: 0.5, y: down ? 0 : 1 } }
 }
 
 export function occupiedRects(editor: Editor): Rect[] {
@@ -69,6 +128,8 @@ export function applyPlan(
   subgraph: SubgraphPayload,
   ds: DesignSystem,
 ): ApplyResult {
+  // Respostas antigas/mocks sem layout: posições do próprio plano.
+  plan = { ...plan, layout: plan.layout ?? { type: 'free' } }
   const created: TLShapeId[] = []
   const imageSlots: TLShapeId[] = []
   editor.markHistoryStoppingPoint('reif:ai-transform')
@@ -88,16 +149,21 @@ export function applyPlan(
     })
     if (updates.length) editor.updateShapes(updates)
 
+    // LAYOUT: estrutura do plano → posições (medidas reais do texto, algoritmo do tipo pedido)
+    const arranged = arrangePlan(editor, plan, subgraph, ds)
+
     // CREATE: composição deslocada como bloco; frames antes dos filhos
-    const dx = groupOffset(plan.create.map(footprint), occupiedRects(editor))
-    const ordered = [...plan.create].sort((a, b) => Number(b.kind === 'frame') - Number(a.kind === 'frame'))
+    const dx = arranged.pinned ? 0 : groupOffset(arranged.create.map(footprint), occupiedRects(editor))
+    const ordered = [...arranged.create].sort((a, b) => Number(b.kind === 'frame') - Number(a.kind === 'frame'))
     const refs = new Map<string, TLShapeId>()
     const frames = new Map<string, Placement['parent']>()
 
     for (const c of ordered) {
       const id = createShapeId()
       const parent = c.frame ? frames.get(c.frame) : undefined
-      const partial = buildCreate(c, { id, ds, dx, pageId: editor.getCurrentPageId(), ...(parent ? { parent } : {}) })
+      const tint = arranged.branch.get(c.ref)
+      const node = tint && !c.color && c.kind !== 'frame' ? { ...c, color: tint } : c
+      const partial = buildCreate(node, { id, ds, dx, pageId: editor.getCurrentPageId(), align: arranged.align.get(c.ref), ...(parent ? { parent } : {}) })
       if (!partial) continue
       editor.createShape(partial)
       refs.set(c.ref, id)
@@ -108,10 +174,57 @@ export function applyPlan(
 
     // CONNECT
     const resolve = (key: string) => refs.get(key) ?? (editor.getShape(asId(key)) ? asId(key) : null)
-    for (const c of plan.connect) {
+    const type = plan.layout.type
+    plan.connect.forEach((c, i) => {
       const from = resolve(c.from)
       const to = resolve(c.to)
-      if (from && to) created.push(connect(editor, ds, from, to, c.label))
+      if (!from || !to) return
+      // Na linha do tempo as setas só definem a ordem; o eixo desenhado abaixo as substitui.
+      if (arranged.spine && refs.has(c.from) && refs.has(c.to) && c.arrow !== 'none' && !c.dashed) return
+      const base = edgeStyle(type, Boolean(c.label))
+      let kind = base.kind
+      let bend = type === 'cycle' ? cycleBend(editor, from, to) : 0
+      const via = arranged.edgeVia.get(i)
+      if (type === 'flow' && via && (c.label || !arranged.shortEdges.has(i))) {
+        // Ligação longa ou rotulada: curva pela rota do dagre (desvia dos nós, rótulo no espaço reservado).
+        kind = 'arc'
+        bend = bendThrough(editor, from, to, { x: via.x + dx, y: via.y })
+      }
+      created.push(
+        connect(editor, ds, from, to, {
+          label: c.label,
+          kind,
+          arrow: c.arrow ?? base.arrow,
+          dashed: c.dashed,
+          color: arranged.branch.get(c.to) ?? arranged.branch.get(c.from),
+          bend,
+          anchors: kind === 'elbow' ? sideAnchors(editor, from, to, axisOf(type, plan.layout.direction)) : undefined,
+        }),
+      )
+    })
+
+    // TIMELINE: eixo + marcador por evento + haste até o cartão.
+    if (arranged.spine) {
+      const sp = arranged.spine
+      const pageId = editor.getCurrentPageId()
+      const shift = (p: { x: number; y: number }) => ({ x: p.x + dx, y: p.y })
+      const extra: ResolvedCreateNode[] = [
+        { ref: 'spine', kind: 'line', text: '', x: 0, y: 0, points: [sp.from, sp.to], role: 'connector', size: 'l' },
+        ...sp.marks.map((m, k): ResolvedCreateNode => ({
+          ref: `tick${k}`, kind: 'line', text: '', x: 0, y: 0, points: [m.at, m.card], role: 'muted',
+        })),
+        ...sp.marks.map((m, k): ResolvedCreateNode => ({
+          ref: `dot${k}`, kind: 'geo', geo: 'ellipse', text: '', x: m.at.x - 8, y: m.at.y - 8, w: 16, h: 16, points: [], role: 'accent',
+        })),
+      ]
+      for (const e of extra) {
+        const node = e.kind === 'line' ? { ...e, points: e.points.map(shift) } : { ...e, x: e.x }
+        const id = createShapeId()
+        const partial = buildCreate(node, { id, ds, dx: e.kind === 'line' ? 0 : dx, pageId })
+        if (!partial) continue
+        editor.createShape(partial)
+        created.push(id)
+      }
     }
 
     if (created.length) editor.select(...created)

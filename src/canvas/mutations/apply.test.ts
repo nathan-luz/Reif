@@ -54,6 +54,8 @@ describe('applyPlan', () => {
   it('lê o plano estruturado e chama os métodos atômicos dentro de um único editor.run()', () => {
     const editor = fakeEditor({ 'shape:b': { type: 'note', props: { richText: {}, color: 'black' } } })
     const plan: MutationPlan = {
+      design: '',
+      layout: { type: 'free' },
       summary: 'Resumo',
       delete: ['shape:a'],
       update: [{ id: 'shape:b', text: 'B editado' }],
