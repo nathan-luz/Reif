@@ -48,3 +48,15 @@ test('"Enviar arquivo" mantém o seletor de arquivos nativo', async ({ page }) =
   await page.getByTestId('media-upload').click()
   await chooser
 })
+
+test('popover Inserir e popover de shapes nunca ficam abertos juntos', async ({ page }) => {
+  await openCanvas(page)
+  const insert = page.getByTestId('insert-popover')
+  await page.getByTestId('tools.asset').click()
+  await expect(insert).toBeVisible()
+  await page.getByTestId('tools.more-button').click()
+  await expect(insert).toHaveCount(0)
+  await page.getByTestId('tools.asset').click()
+  await expect(insert).toBeVisible()
+  await expect.poll(() => page.evaluate(() => window.editor.menus.getOpenMenus().length)).toBe(0)
+})

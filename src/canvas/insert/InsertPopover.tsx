@@ -1,5 +1,5 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
-import { TldrawUiIcon, useEditor, useValue } from 'tldraw'
+import { react, TldrawUiIcon, useEditor, useValue } from 'tldraw'
 import { importFiles, importFromUrl } from '../../files/importer'
 import { formatTime } from '../../shared/video'
 import { IconButton } from '../../ui/IconButton'
@@ -8,7 +8,8 @@ import { pickFiles } from '../media/pickFiles'
 import { closeInsertMenu, insertMenu, type InsertMode } from './state'
 import { useRecorder } from './useRecorder'
 
-const ANCHORS = ['[data-testid="tools.asset"]', '[data-testid="tools.more-button"]']
+const TOOL = '[data-testid="tools.asset"]'
+const ANCHORS = [TOOL, '[data-testid="tools.more-button"]']
 const GAP = 8
 
 /**
@@ -49,7 +50,8 @@ function Popover({ mode }: { mode: InsertMode }) {
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node
       if (ref.current?.contains(t)) return
-      if (ANCHORS.some((s) => (t as Element).closest?.(s))) return
+      // Só o próprio botão alterna; o "mais" abre o popover de shapes e deve fechar este.
+      if ((t as Element).closest?.(TOOL)) return
       if ((t as Element).closest?.('.tlui-tooltip, [role="dialog"]')) return
       closeInsertMenu()
     }
@@ -61,6 +63,16 @@ function Popover({ mode }: { mode: InsertMode }) {
       window.removeEventListener('keydown', onKey)
     }
   }, [])
+
+  // Qualquer menu/popover do tldraw que abrir depois (shapes, menu principal, atalhos) fecha este.
+  useLayoutEffect(() => {
+    let known = new Set(editor.menus.getOpenMenus())
+    return react('reif:insert-vs-menus', () => {
+      const open = editor.menus.getOpenMenus()
+      if (open.some((m) => !known.has(m))) closeInsertMenu()
+      known = new Set(open)
+    })
+  }, [editor])
 
   return (
     <div
