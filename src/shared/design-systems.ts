@@ -238,6 +238,6 @@ export function defaultRoleFor(kind: string, size?: string): StyleRole {
 export function describeForLLM(ds: DesignSystem): string {
   return `Active design system: "${ds.name}" — ${ds.description}
 Layout: ${ds.layout.hint}; use ~${ds.layout.gap}px gaps.
-Styling: set "role" on every created node (${STYLE_ROLES.join(', ')}) and OMIT color/fill/dash/size,
-so the design system styles it. Set explicit color/fill/dash/size ONLY if the user explicitly asks for them.`
+Styling: set "role" on every created node (${STYLE_ROLES.join(', ')}) and OMIT "style",
+so the design system styles it. Use "style" tokens (color/fill/dash/size) ONLY if the user explicitly asks for them.`
 }

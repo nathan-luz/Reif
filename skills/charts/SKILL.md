@@ -12,7 +12,7 @@ Charts are the one case where **you** compute coordinates: `layout: { "type": "f
 | Question | Chart |
 |---|---|
 | compare amounts across categories | bars, sorted by value unless categories have a natural order |
-| change over time / a function | line, using `line` with `points` (and `curved: true` for smooth functions) |
+| change over time / a function | line, using `line` with `points` (and `style: "curved"` for smooth functions) |
 | relation between two variables | scatter: small `geo` `ellipse` dots, 10×10 |
 | parts of a whole (≤ 5 parts) | horizontal **100% stacked bar** (preferred), or pie/donut via closed `draw` shapes |
 | one value on a scale | number line |
@@ -31,7 +31,7 @@ Choose a plot rectangle, e.g. origin O = (x0, y0) = (100, 500) for the bottom-le
 - **Ticks:**
   - small `text` labels (role `muted`, size `s`) left of the y axis at each tick value, x ≈ x0 − 50
   - category names under the x axis, y ≈ y0 + 12
-- **Gridlines (optional):** `line` role `muted`, `dash: "dotted"` (only if the user wants a precise reading).
+- **Gridlines (optional):** `line` role `muted`, `style: "dash-dotted"` (only if the user wants a precise reading).
 - **Axis titles:** `text` role `body`, including the unit: "Temperature (°C)".
 - **Chart title:** `text` role `heading` well above the plot (≥ 80 px above the highest label), stating the takeaway ("Sales doubled in Q3"), not just "Sales chart".
 
@@ -42,7 +42,7 @@ Choose a plot rectangle, e.g. origin O = (x0, y0) = (100, 500) for the bottom-le
   - x = x0 + i·slot + slot·0.2, y = valueY, h = y0 − valueY.
   - Put the value in a separate `text` (size `s`) centered above the bar.
 - **Line series.** One `line` with all `points` in data order (≤ 60). Add an end label (`text`) at the last point instead of a legend.
-- **Function plot.** Sample 30–60 points across the domain and use `curved: true`. Draw asymptotes as dashed `line`s.
+- **Function plot.** Sample 30–60 points across the domain and use `style: "curved"`. Draw asymptotes as `line`s with `style: "dash-dashed"`.
 - **Pie/donut.** Use one `draw` per slice. Its points are the center plus the arc points, closing back to the center (8–40 points; repeat the first point at the end to close it so it can be filled).
   - Angles start at −90° (top) and go clockwise, in descending share.
   - Label slices with `text` placed outside the pie at the slice's mid-angle: "Name 42%".

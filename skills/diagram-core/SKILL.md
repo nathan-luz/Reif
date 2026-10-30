@@ -58,7 +58,7 @@ Default to the structure the content actually has; a mind map is not a universal
   - `hexagon`: key mechanism
 - `text` = a free-floating label: titles, leaf keywords in mind maps and trees, annotations. Default to free text and add a container only when the box has a purpose (the focal point, an arrow target, or shape meaning). Aim for ≤ 40% of the text to sit inside boxes in mind maps and trees.
 - `image` = a picture. Use `generate` (an English subject description) to have AI draw it in the active style, with no text in the image, or `query` to search the web.
-- `doodle` = a small hand-drawn icon (`icon`: a Lucide name such as lightbulb, target or heart-pulse) placed beside an item as a visual cue.
+- `doodle` = a small hand-drawn icon (`query`: a Lucide icon name such as lightbulb, target or heart-pulse) placed beside an item as a visual cue.
 - `note` = a sticky with a short sentence: examples, mnemonics, "remember that…" (≤ 15 words). Attach it to the node it explains with `connect` (`arrow: "none"`, `dashed: true`) so the layout places it beside that node.
 - `frame` = a named group (columns, zones). Children set `"frame": "<ref>"`.
 - `connect` = arrows bound to nodes. Never draw arrows with `line`.
@@ -77,7 +77,7 @@ Default to the structure the content actually has; a mind map is not a universal
   - `container`: frames
 
   Give one `accent` per diagram. Hierarchy should be visible through scale and role, going from accent to primary to secondary to body.
-- Set explicit `color`, `fill`, `dash` or `size` only if the user asks. For mind maps, set `layout.branchColors: true` instead: one color per branch, inherited, with a neutral root.
+- Set explicit style tokens (`style`: e.g. "red fill-solid size-l") only if the user asks. For mind maps, set `layout.branchColors: true` instead: one color per branch, inherited, with a neutral root.
 
 ## 6. How the plan maps to the engine
 

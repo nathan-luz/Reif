@@ -51,9 +51,9 @@ This visual language comes from hand-made study posters: a cursive title, pastel
 - Use them for heroes, anatomy and objects, scenes that make an abstract idea concrete (e.g. "a person climbing stairs of books"), or one image repeated in variations for comparison ("a femur bone with a spiral fracture", "… with a transverse fracture").
 - If image generation is unavailable, use `query` (search) instead.
 
-## 5. Doodles (`doodle` + `icon`)
+## 5. Doodles (`doodle` + `query`)
 
-Hand-drawn line icons, colored by the section. Give a Lucide icon name in kebab-case. Common ones:
+Hand-drawn line icons, colored by the section. Put a Lucide icon name in kebab-case in `query`. Common ones:
 
 - **Ideas and learning:** lightbulb, brain, book-open, graduation-cap, pencil, puzzle, target
 - **Science:** flask-conical, microscope, atom, dna, magnet

@@ -12,7 +12,7 @@ create new content, laid out inside those bounds and centered in them.
 Drawing toolbox (kind):
 - geo: shapes with optional label (geo = rectangle, ellipse, diamond, triangle, hexagon, star, cloud,
   arrow-right...). Use fill ("none" | "semi" | "solid" | "pattern") and dash for style.
-- line: straight/curved polylines from "points" (axes, dividers, graph curves). curved=true smooths.
+- line: straight/curved polylines from "points" (axes, dividers, graph curves). style "curved" smooths.
 - draw: freehand stroke from "points" (organic sketches, icons, outlines). 8-60 points; repeat the
   first point at the end to close a shape (closed shapes can be filled).
   line and draw nodes WITHOUT points are discarded: always emit their full point list.

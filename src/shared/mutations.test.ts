@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { LLMPlanSchema, sanitizePlan, stripEmptyOptionals, type CreateNode, type LLMPlan } from './mutations'
+import { fromWire, LLMPlanSchema, sanitizePlan, stripEmptyOptionals, WirePlanSchema, type CreateNode, type LLMPlan } from './mutations'
 import type { SubgraphPayload } from './subgraph'
 
 const subgraph: SubgraphPayload = {
@@ -92,5 +92,57 @@ describe('LLMPlanSchema → JSON Schema', () => {
     const json = JSON.stringify(z.toJSONSchema(LLMPlanSchema))
     for (const k of ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength'])
       expect(json, k).not.toContain(`"${k}"`)
+  })
+})
+
+describe('esquema de fio (LLM)', () => {
+  it('cabe nos limites do structured output do Claude (≤ 20 opcionais, sem uniões)', () => {
+    const json = z.toJSONSchema(WirePlanSchema) as Record<string, unknown>
+    let optional = 0
+    let unions = 0
+    const walk = (n: unknown) => {
+      if (!n || typeof n !== 'object') return
+      const o = n as Record<string, unknown>
+      if (o['anyOf'] || Array.isArray(o['type'])) unions++
+      if (o['type'] === 'object' && o['properties']) {
+        const req = new Set((o['required'] as string[]) ?? [])
+        optional += Object.keys(o['properties'] as object).filter((k) => !req.has(k)).length
+      }
+      Object.values(o).forEach(walk)
+    }
+    walk(json)
+    expect(optional).toBeLessThanOrEqual(20)
+    expect(unions).toBe(0)
+  })
+
+  it('fromWire converte tokens de estilo e o ícone dos doodles', () => {
+    const wire = WirePlanSchema.parse({
+      summary: 's', delete: [], connect: [],
+      update: [{ id: 'shape:a', style: 'red' }],
+      create: [
+        { ref: 'n1', kind: 'geo', text: 'x', x: 0, y: 0, points: [], style: 'blue fill-solid size-l' },
+        { ref: 'n2', kind: 'doodle', text: '', x: 0, y: 0, points: [], query: 'lightbulb' },
+        { ref: 'n3', kind: 'line', text: '', x: 0, y: 0, points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], style: 'curved dash-dashed' },
+      ],
+    })
+    const plan = fromWire(wire)
+    expect(plan.update[0]).toEqual({ id: 'shape:a', color: 'red' })
+    expect(plan.create[0]).toMatchObject({ color: 'blue', fill: 'solid', size: 'l' })
+    expect(plan.create[1]).toMatchObject({ icon: 'lightbulb' })
+    expect(plan.create[1]).not.toHaveProperty('query')
+    expect(plan.create[2]).toMatchObject({ curved: true, dash: 'dashed' })
+    expect(plan.layout).toEqual({ type: 'free' })
+  })
+})
+
+describe('fromWire geo', () => {
+  it('aceita geo válido e descarta desconhecido', () => {
+    const base = { summary: 's', delete: [], connect: [], update: [] }
+    const p = fromWire(WirePlanSchema.parse({ ...base, create: [
+      { ref: 'a', kind: 'geo', text: '', x: 0, y: 0, points: [], geo: 'diamond' },
+      { ref: 'b', kind: 'geo', text: '', x: 0, y: 0, points: [], geo: 'blob' },
+    ] }))
+    expect(p.create[0]!.geo).toBe('diamond')
+    expect(p.create[1]!.geo).toBeUndefined()
   })
 })

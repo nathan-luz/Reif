@@ -125,6 +125,92 @@ export const LLMPlanSchema = z.object({
 })
 export type LLMPlan = z.infer<typeof LLMPlanSchema>
 
+// ── Esquema "de fio" enviado ao LLM ───────────────────────────────────────
+// O structured output do Claude limita parâmetros opcionais (24 no total) e a
+// complexidade da gramática. O LLM vê um esquema enxuto; o Worker converte para o
+// plano rico acima (fromWire). Estilos explícitos viram uma única string de tokens.
+
+const STYLE_HELP =
+  'Só se o usuário pedir estilo explícito: tokens separados por espaço — cor (' +
+  COLORS.join(', ') +
+  '), fill-none|fill-semi|fill-solid|fill-pattern, dash-draw|dash-solid|dash-dashed|dash-dotted, size-s|size-m|size-l|size-xl, curved (line suave).'
+
+export const WireNodeSchema = z.object({
+  ref: CreateNodeSchema.shape.ref,
+  kind: CreateNodeSchema.shape.kind,
+  text: CreateNodeSchema.shape.text,
+  x: CreateNodeSchema.shape.x,
+  y: CreateNodeSchema.shape.y,
+  points: CreateNodeSchema.shape.points,
+  w: z.number().optional().describe('geo/frame/image/doodle'),
+  h: z.number().optional().describe('geo/frame/image/doodle'),
+  // string livre (validada em fromWire): enum longo aqui encarece a gramática do Claude.
+  geo: z.string().optional().describe(`Só para geo: ${GEO_TYPES.join(' | ')}. Padrão rectangle.`),
+  role: CreateNodeSchema.shape.role,
+  frame: CreateNodeSchema.shape.frame,
+  query: z
+    .string()
+    .optional()
+    .describe('youtube/image: termos de busca. doodle: nome do ícone Lucide em kebab-case (ex.: lightbulb, brain, heart-pulse).'),
+  generate: CreateNodeSchema.shape.generate,
+  style: z.string().optional().describe(STYLE_HELP),
+})
+
+export const WireUpdateSchema = z.object({
+  id: z.string(),
+  text: z.string().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  style: z.string().optional().describe('Só cor: um nome de cor (ex.: red) se o usuário pedir.'),
+})
+
+export const WirePlanSchema = z.object({
+  design: LLMPlanSchema.shape.design,
+  summary: LLMPlanSchema.shape.summary,
+  delete: LLMPlanSchema.shape.delete,
+  update: z.array(WireUpdateSchema),
+  create: z.array(WireNodeSchema),
+  connect: LLMPlanSchema.shape.connect,
+  layout: LLMPlanSchema.shape.layout,
+})
+export type WirePlan = z.infer<typeof WirePlanSchema>
+
+const pick = <T extends readonly string[]>(tokens: string[], values: T, prefix = ''): T[number] | undefined =>
+  values.find((v) => tokens.includes(prefix + v))
+
+/** Tokens de estilo ("red fill-solid size-l curved") → props do plano rico. */
+export function parseStyle(style: string | undefined) {
+  const tokens = (style ?? '').toLowerCase().split(/[\s,;]+/).filter(Boolean)
+  const out: Partial<Pick<CreateNode, 'color' | 'fill' | 'dash' | 'size' | 'curved'>> = {}
+  const color = pick(tokens, COLORS)
+  const fill = pick(tokens, FILLS, 'fill-')
+  const dash = pick(tokens, DASHES, 'dash-')
+  const size = pick(tokens, SIZES, 'size-')
+  if (color) out.color = color
+  if (fill) out.fill = fill
+  if (dash) out.dash = dash
+  if (size) out.size = size
+  if (tokens.includes('curved')) out.curved = true
+  return out
+}
+
+/** Plano "de fio" (LLM) → plano rico usado pelo canvas. */
+export function fromWire(wire: WirePlan): LLMPlan {
+  return {
+    ...wire,
+    update: wire.update.map(({ style, ...u }) => {
+      const color = parseStyle(style).color
+      return color ? { ...u, color } : u
+    }),
+    create: wire.create.map(({ style, query, geo, ...n }) => ({
+      ...n,
+      ...((GEO_TYPES as readonly string[]).includes(geo ?? '') ? { geo: geo as (typeof GEO_TYPES)[number] } : {}),
+      ...parseStyle(style),
+      ...(query !== undefined ? (n.kind === 'doodle' ? { icon: query } : { query }) : {}),
+    })),
+  }
+}
+
 export const ResolvedMediaSchema = z.object({ videoId: z.string(), title: z.string() })
 
 /** Nó após o Worker resolver mídias (query → vídeo real). */

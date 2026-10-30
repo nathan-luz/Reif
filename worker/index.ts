@@ -2,7 +2,8 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { isVideoId } from '../src/shapes/youtube/youtube-url'
 import {
-  LLMPlanSchema,
+  WirePlanSchema,
+  fromWire,
   sanitizePlan,
   stripEmptyOptionals,
   TransformRequestSchema,
@@ -39,7 +40,7 @@ type Env = {
   CLOUDFLARE_AI_TOKEN?: string
 }
 
-const PLAN_JSON_SCHEMA = z.toJSONSchema(LLMPlanSchema) as JsonSchema
+const PLAN_JSON_SCHEMA = z.toJSONSchema(WirePlanSchema) as JsonSchema
 
 function getProvider(env: Env, provider: Provider): LLMProvider | null {
   switch (provider) {
@@ -70,9 +71,9 @@ app.post('/api/transform', async (c) => {
       user: buildUserMessage(req),
       schema: PLAN_JSON_SCHEMA,
     })
-    const plan = LLMPlanSchema.safeParse(stripEmptyOptionals(raw))
+    const plan = WirePlanSchema.safeParse(stripEmptyOptionals(raw))
     if (!plan.success) return c.json({ error: 'resposta do LLM fora do schema', issues: plan.error.issues }, 502)
-    return c.json(await resolvePlan(sanitizePlan(plan.data, req.subgraph), c.env))
+    return c.json(await resolvePlan(sanitizePlan(fromWire(plan.data), req.subgraph), c.env))
   } catch (err) {
     if (err instanceof ProviderError) {
       console.error(err.message)

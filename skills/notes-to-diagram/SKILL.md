@@ -36,7 +36,7 @@ The selection JSON is the **source of truth**. The goal is the NotebookLM experi
   - The engine reuses their area.
 - "Make a map of / summarize / connect…" means **keep** the originals and create the diagram next to them. The engine places it to the right of the selection.
 - Add arrows between existing notes without moving them: use `connect` with existing ids, `layout.type: "free"` and an empty `create`.
-- Adjusting a few existing nodes: use `update` (text/color/x/y) only for ids in the selection.
+- Adjusting a few existing nodes: use `update` (text, x/y, or a color via `style`) only for ids in the selection.
 
 ## 4. Expanding a node inside an existing diagram (regeneration)
 

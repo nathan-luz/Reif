@@ -29,9 +29,15 @@ export async function fetchWithRetry(
   url: string,
   init: RequestInit,
   attempts = 3,
-  timeoutMs = 60_000,
+  timeoutMs = 120_000,
 ): Promise<Response> {
-  const call = () => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+  const provider = new URL(url).hostname.split('.').slice(-2, -1)[0] ?? 'llm'
+  // Timeout/rede viram ProviderError (o usuário vê a causa em vez de um 500 genérico).
+  const call = () =>
+    fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) }).catch((e: unknown) => {
+      const timeout = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')
+      throw new ProviderError(provider, timeout ? 504 : 502, timeout ? `sem resposta em ${timeoutMs / 1000}s` : String(e))
+    })
   let res = await call()
   for (let i = 1; i < attempts && RETRYABLE.has(res.status); i++) {
     await new Promise((r) => setTimeout(r, 500 * 2 ** i))
