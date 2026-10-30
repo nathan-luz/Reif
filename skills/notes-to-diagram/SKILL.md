@@ -38,13 +38,19 @@ The selection JSON is the **source of truth**. The goal is the NotebookLM experi
 - Add arrows between existing notes without moving them: use `connect` with existing ids, `layout.type: "free"` and an empty `create`.
 - Adjusting a few existing nodes: use `update` (text/color/x/y) only for ids in the selection.
 
-## 4. Expanding one node
+## 4. Expanding a node inside an existing diagram (regeneration)
 
-When exactly one node is selected and the user asks to expand, detail, break down, or "go deeper":
+Use this when one node is selected and the user asks to add, expand, detail, break down, list contents, or "go deeper". Instructions like "add the main contents of this subject" are short on purpose.
 
-1. Set `layout.root` = that node's **id**, and `layout.type` = `mindmap` (or `tree` for part–whole and classification).
-2. Create ≤ 5 children, connected from that id, in reading order. Add grandchildren only if they are explicitly requested.
-3. Don't delete or recreate the selected node. The engine keeps it fixed and grows the branch around it.
+1. **Read the board context first.** Interpret the request in the frame of the diagram's central topic and the path to the node. Example: path "ENEM subjects → Natural Sciences → Biology" plus "add the main contents of this subject" means the Biology topics **most tested in ENEM**, not a generic biology syllabus. Name the content the way that context names it (exam topics, chapter themes, the course's terms).
+2. **Grow only that node.** Set `layout.root` = the selected node's **id**, and `layout.type` = the existing diagram's layout (`mindmap` or `tree`). Connect every new node from that id, or from another new node, in reading order. Never recreate, rename, or delete the selected node or its neighbours. The engine re-lays out the whole diagram around the new nodes, keeps every branch on its side, and moves the neighbours to make room.
+3. **Match the visual level.** New nodes are one level deeper than the selected node, so they must look subordinate:
+   - Children of a `text` leaf are `text` nodes with role `body` (grandchildren role `muted`).
+   - Children of a `geo` branch are `geo` nodes with role `secondary`, or `text` with role `body`.
+   - Don't set colors. New nodes inherit the branch color automatically.
+4. **Budget.** Use 4–7 children. Add at most one more level (2–3 items each) only when it carries real information, e.g. examples or sub-topics an exam really asks for. Keep to ≤ 20 new nodes in total, with keyword labels of ≤ 4 words.
+5. **Don't duplicate** the node's existing children listed in the context. Complement them.
+6. In `summary`, say what was added in the user's language, and suggest the next node to expand.
 
 ## 5. Long documents (PDF, book, transcript)
 

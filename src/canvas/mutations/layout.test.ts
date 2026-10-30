@@ -162,3 +162,14 @@ describe('sequence', () => {
     expect(sequence(nodes, [{ from: 'a', to: 'b' }, { from: 'b', to: 'c' }])).toEqual(['a', 'b', 'c', 'x'])
   })
 })
+
+describe('mindmap com lados fixos (regeração)', () => {
+  it('mantém cada ramo existente do lado em que estava, mesmo desbalanceado', () => {
+    const { nodes, edges } = studyTree()
+    const sides = new Map<string, 1 | -1>([['b1', -1], ['b2', -1], ['b3', -1], ['b4', 1], ['b5', -1]])
+    const b = computeLayout({ type: 'mindmap', root: 'root', nodes, edges, gap: 56, sides }).boxes
+    const cx = (id: string) => b.get(id)!.x + b.get(id)!.w / 2
+    for (const [id, side] of sides) expect(Math.sign(cx(id) - cx('root'))).toBe(side)
+    expectNoOverlaps(b)
+  })
+})

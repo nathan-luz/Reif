@@ -29,11 +29,29 @@ export const SubgraphEdgeSchema = z.object({
 })
 export type SubgraphEdge = z.infer<typeof SubgraphEdgeSchema>
 
+/** Contexto somente-leitura do board ao redor da seleção (para pedidos curtos e ambíguos). */
+export const BoardContextSchema = z.object({
+  diagram: z
+    .object({
+      layout: z.string(),
+      topic: z.string(),
+      path: z.array(z.string()).max(12),
+      depth: z.number(),
+      siblings: z.array(z.string()).max(40),
+      existingChildren: z.array(z.string()).max(40),
+      branches: z.array(z.string()).max(40),
+    })
+    .optional(),
+  board: z.array(z.string().max(200)).max(40).optional(),
+})
+export type BoardContext = z.infer<typeof BoardContextSchema>
+
 export const SubgraphPayloadSchema = z.object({
   /** selection = nós selecionados; viewport = nada selecionado, bounds é a área visível. */
   mode: z.enum(['selection', 'viewport']).default('selection'),
   bounds: RectSchema,
   nodes: z.array(SubgraphNodeSchema),
   edges: z.array(SubgraphEdgeSchema),
+  context: BoardContextSchema.optional(),
 })
 export type SubgraphPayload = z.infer<typeof SubgraphPayloadSchema>

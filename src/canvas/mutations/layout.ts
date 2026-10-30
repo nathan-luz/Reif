@@ -35,6 +35,8 @@ export interface LayoutInput extends Layout {
   edges: LEdge[]
   /** Espaçamento base (o design system ativo define). */
   gap: number
+  /** mindmap: lado fixo de ramos já existentes (regeração estável: nada troca de lado). */
+  sides?: Map<string, 1 | -1> | undefined
 }
 
 export interface Pt {
@@ -164,7 +166,7 @@ function tidyTree(ctx: Ctx, root: string, children: Map<string, string[]>, dir: 
 }
 
 // ── Mapa mental: raiz central, ramos de 1º nível divididos entre direita e esquerda ──
-function mindmap(ctx: Ctx, root: string, children: Map<string, string[]>) {
+function mindmap(ctx: Ctx, root: string, children: Map<string, string[]>, sides?: Map<string, 1 | -1>) {
   const { gap } = ctx
   const rootNode = ctx.byId.get(root)!
   put(ctx, root, 0, 0)
@@ -184,11 +186,21 @@ function mindmap(ctx: Ctx, root: string, children: Map<string, string[]>) {
   }
   const total = branches.reduce((s, b) => s + measure(b), 0)
   // Ordem preservada: os primeiros ramos à direita (leitura em sentido horário), o resto à esquerda.
-  let k = 0
-  let acc = 0
-  while (k < branches.length - 1 && acc + breadth.get(branches[k]!)! / 2 < total / 2) acc += breadth.get(branches[k++]!)!
-  const right = branches.slice(0, Math.max(1, k))
-  const left = branches.slice(Math.max(1, k))
+  let right: string[]
+  let left: string[]
+  if (sides?.size) {
+    // Regeração: ramos existentes ficam do lado em que estão; novos vão para o lado mais leve.
+    right = branches.filter((b) => sides.get(b) === 1)
+    left = branches.filter((b) => sides.get(b) === -1)
+    const weight = (l: string[]) => l.reduce((s, b) => s + breadth.get(b)!, 0)
+    for (const b of branches.filter((x) => !sides.has(x))) (weight(right) <= weight(left) ? right : left).push(b)
+  } else {
+    let k = 0
+    let acc = 0
+    while (k < branches.length - 1 && acc + breadth.get(branches[k]!)! / 2 < total / 2) acc += breadth.get(branches[k++]!)!
+    right = branches.slice(0, Math.max(1, k))
+    left = branches.slice(Math.max(1, k))
+  }
 
   const side = (list: string[], sign: 1 | -1) => {
     // Larguras máximas por profundidade neste lado → colunas alinhadas.
@@ -498,7 +510,7 @@ export function computeLayout(input: LayoutInput): LayoutOutput {
       const root = pickRoot(input, nonFrames)
       if (!root) break
       const { children, depth } = spanningTree(root, nonFrames, input.edges)
-      if (type === 'mindmap') mindmap(ctx, root, children)
+      if (type === 'mindmap') mindmap(ctx, root, children, input.sides)
       else if (type === 'radial') radial(ctx, root, children, depth)
       else tidyTree(ctx, root, children, input.direction ?? 'down', Math.round(input.gap * (dir === 'down' ? 1.2 : 1)), Math.round(input.gap * 0.45))
       break

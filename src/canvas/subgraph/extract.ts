@@ -1,4 +1,5 @@
 import type { Editor, TLArrowBinding, TLArrowShape, TLShape, TLShapeId } from 'tldraw'
+import { boardContext } from './structure'
 import type { SubgraphEdge, SubgraphNode, SubgraphPayload } from '../../shared/subgraph'
 
 /** Props que não agregam semântica para o LLM e só inflam o payload. */
@@ -92,17 +93,20 @@ export function extractSubgraph(editor: Editor): SubgraphPayload | null {
     }
   }
 
+  const context = boardContext(editor, nodeShapes.map((s) => s.id))
   return {
     mode: 'selection',
     bounds: { x: round(bounds.x), y: round(bounds.y), w: round(bounds.w), h: round(bounds.h) },
     nodes: nodeShapes.flatMap((s) => toNode(editor, s) ?? []),
     edges: [...arrows.values()].map((a) => toEdge(editor, a)),
+    ...(context ? { context } : {}),
   }
 }
 
 /** Sem seleção: contexto é a área visível (com margem), sem nós editáveis. */
 export function extractViewportContext(editor: Editor): SubgraphPayload {
   const vp = editor.getViewportPageBounds()
+  const context = boardContext(editor, [])
   const mx = vp.w * 0.1
   const my = vp.h * 0.15
   return {
@@ -110,5 +114,6 @@ export function extractViewportContext(editor: Editor): SubgraphPayload {
     bounds: { x: round(vp.x + mx), y: round(vp.y + my), w: round(vp.w - mx * 2), h: round(vp.h - my * 2) },
     nodes: [],
     edges: [],
+    ...(context ? { context } : {}),
   }
 }

@@ -35,10 +35,10 @@ A mind map is a **radial tree of keywords** around one central topic. It is good
 
 ## Variations
 
-- **Expand a node** (a node is selected and the user says "expand", "detail this", "go deeper"):
-  - Set `layout.root` = the **existing node's id**.
-  - Create only its new children: **≤ 5** per expansion, the way Whimsical and NotebookLM do it.
-  - Connect them from that id. Do not recreate or delete the root.
+- **Expand or add to a node** (a node is selected and the user says "expand", "add…", "detail this", "go deeper"): follow notes-to-diagram section 4.
+  - Set `layout.root` = the **existing node's id** and `layout.type: "mindmap"`.
+  - Read the board context so a short request is interpreted within the map's topic.
+  - Use 4–7 children that look subordinate to the selected node, plus at most one extra level.
 - **Skeleton map** for active study ("for me to complete", "practice", "fill in"):
   - Generate the root plus 4–6 themes and 1–2 examples each.
   - Add empty `geo` nodes or "?" leaves for the learner to fill in.

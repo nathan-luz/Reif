@@ -15,6 +15,7 @@ import type { SubgraphPayload } from '../../shared/subgraph'
 import { buildCreate, footprint, styleFor, type Placement } from './build'
 import { groupOffset, type Rect } from './placement'
 import { arrangePlan } from './arrange'
+import { findDiagram } from '../subgraph/structure'
 import { edgeStyle } from './layout'
 
 const asId = (id: string) => id as TLShapeId
@@ -89,6 +90,34 @@ function bendThrough(editor: Editor, from: TLShapeId, to: TLShapeId, via: { x: n
   return Math.abs(d) < 4 ? 0 : d
 }
 
+/** Move nós existentes para as posições recalculadas (top-left de página). */
+function moveExisting(editor: Editor, moves: Map<string, { x: number; y: number }>) {
+  const updates: TLShapePartial[] = []
+  for (const [id, to] of moves) {
+    const shape = editor.getShape(asId(id))
+    const b = shape ? editor.getShapePageBounds(shape) : undefined
+    if (!shape || !b || shape.parentId !== editor.getCurrentPageId()) continue
+    updates.push({ id: shape.id, type: shape.type, x: shape.x + (to.x - b.x), y: shape.y + (to.y - b.y) })
+  }
+  if (updates.length) editor.updateShapes(updates)
+}
+
+/** Afasta horizontalmente o que estiver dentro da nova área do diagrama (mesmo lado em que estava). */
+function makeRoom(editor: Editor, area: Rect, members: Set<string>, gap = 60) {
+  const cx = area.x + area.w / 2
+  const updates: TLShapePartial[] = []
+  for (const s of editor.getCurrentPageShapes()) {
+    if (s.type === 'arrow' || members.has(s.id) || s.parentId !== editor.getCurrentPageId()) continue
+    const b = editor.getShapePageBounds(s)
+    if (!b) continue
+    const hit = b.x < area.x + area.w + gap && b.x + b.w + gap > area.x && b.y < area.y + area.h + gap && b.y + b.h + gap > area.y
+    if (!hit) continue
+    const dx = b.center.x >= cx ? area.x + area.w + gap - b.x : area.x - gap - (b.x + b.w)
+    updates.push({ id: s.id, type: s.type, x: s.x + dx })
+  }
+  if (updates.length) editor.updateShapes(updates)
+}
+
 const axisOf = (type: string, direction?: string): 'x' | 'y' =>
   type === 'mindmap' || direction === 'right' ? 'x' : 'y'
 
@@ -150,7 +179,12 @@ export function applyPlan(
     if (updates.length) editor.updateShapes(updates)
 
     // LAYOUT: estrutura do plano → posições (medidas reais do texto, algoritmo do tipo pedido)
-    const arranged = arrangePlan(editor, plan, subgraph, ds)
+    // Regeração: raiz é um nó existente dentro de um diagrama hierárquico → estende o diagrama todo.
+    const rootId = plan.layout.type !== 'free' ? plan.layout.root : undefined
+    const existing = rootId && editor.getShape(asId(rootId)) ? findDiagram(editor, rootId) : null
+    const arranged = arrangePlan(editor, plan, subgraph, ds, existing)
+    if (arranged.moves?.size) moveExisting(editor, arranged.moves)
+    if (arranged.footprintAll && existing) makeRoom(editor, arranged.footprintAll, new Set(existing.nodes.keys()))
 
     // CREATE: composição deslocada como bloco; frames antes dos filhos
     const dx = arranged.pinned ? 0 : groupOffset(arranged.create.map(footprint), occupiedRects(editor))
@@ -174,7 +208,8 @@ export function applyPlan(
 
     // CONNECT
     const resolve = (key: string) => refs.get(key) ?? (editor.getShape(asId(key)) ? asId(key) : null)
-    const type = plan.layout.type
+    const type = arranged.layout?.type ?? plan.layout.type
+    const direction = arranged.layout?.direction ?? plan.layout.direction
     plan.connect.forEach((c, i) => {
       const from = resolve(c.from)
       const to = resolve(c.to)
@@ -198,7 +233,7 @@ export function applyPlan(
           dashed: c.dashed,
           color: arranged.branch.get(c.to) ?? arranged.branch.get(c.from),
           bend,
-          anchors: kind === 'elbow' ? sideAnchors(editor, from, to, axisOf(type, plan.layout.direction)) : undefined,
+          anchors: kind === 'elbow' ? sideAnchors(editor, from, to, axisOf(type, direction)) : undefined,
         }),
       )
     })
@@ -225,6 +260,18 @@ export function applyPlan(
         editor.createShape(partial)
         created.push(id)
       }
+    }
+
+    // Marca a raiz do diagrama novo (tipo de layout) para regerações futuras.
+    const newRoot = plan.layout.root ? refs.get(plan.layout.root) : undefined
+    const rootShape = newRoot ? editor.getShape(newRoot) : undefined
+    if (rootShape && (type === 'mindmap' || type === 'tree')) {
+      const meta = rootShape.meta as { reif?: Record<string, unknown> }
+      editor.updateShape({
+        id: rootShape.id,
+        type: rootShape.type,
+        meta: { ...rootShape.meta, reif: { ...(meta.reif ?? {}), layoutRoot: true, layout: type, direction: direction ?? 'down' } },
+      })
     }
 
     if (created.length) editor.select(...created)

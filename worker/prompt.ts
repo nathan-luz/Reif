@@ -1,5 +1,6 @@
 import { describeForLLM, getDesignSystem } from '../src/shared/design-systems'
 import type { TransformRequest } from '../src/shared/mutations'
+import type { SubgraphPayload } from '../src/shared/subgraph'
 import { renderSkills, selectSkills } from './skills'
 
 export const SYSTEM_PROMPT = `You are the transformation and drawing engine of Reif, an infinite-canvas knowledge tool.
@@ -57,11 +58,32 @@ For simple edits (rename, recolor, translate, answer a question as a note) just 
 ${skills}`
 }
 
+/** Contexto do board (somente leitura): resolve referências como "desta matéria", "este tema". */
+function describeContext(ctx: SubgraphPayload['context']): string {
+  if (!ctx) return ''
+  const lines: string[] = ['', '', 'Board context (read-only — do NOT recreate or edit these; use them to interpret the instruction):']
+  const d = ctx.diagram
+  if (d) {
+    lines.push(`- The selection belongs to an existing ${d.layout} whose central topic is "${d.topic}".`)
+    lines.push(`- Path from the center to the selected node: ${d.path.map((p) => `"${p}"`).join(' → ')} (selected node depth ${d.depth}).`)
+    if (d.branches.length) lines.push(`- Main branches of that diagram: ${d.branches.map((b) => `"${b}"`).join(', ')}.`)
+    if (d.siblings.length) lines.push(`- Siblings of the selected node: ${d.siblings.map((b) => `"${b}"`).join(', ')}.`)
+    lines.push(
+      d.existingChildren.length
+        ? `- The selected node already has these children (do not duplicate them): ${d.existingChildren.map((b) => `"${b}"`).join(', ')}.`
+        : '- The selected node has no children yet.',
+    )
+  }
+  if (ctx.board?.length) lines.push(`- Other notable texts on the board: ${ctx.board.slice(0, 25).map((b) => `"${b}"`).join(', ')}.`)
+  return lines.join('\n')
+}
+
 export function buildUserMessage({ prompt, subgraph, attachments }: Pick<TransformRequest, 'prompt' | 'subgraph' | 'attachments'>): string {
   const docs = (attachments ?? [])
     .map((a) => `<document id="${a.id}" name="${a.name.replace(/"/g, "'")}" kind="${a.kind}">\n${a.text}\n</document>`)
     .join('\n')
-  return `Instruction:\n${prompt}\n\nSelection:\n\`\`\`json\n${JSON.stringify(subgraph)}\n\`\`\`${
+  const { context, ...selection } = subgraph
+  return `Instruction:\n${prompt}\n\nSelection:\n\`\`\`json\n${JSON.stringify(selection)}\n\`\`\`${describeContext(context)}${
     docs
       ? `\n\nFull content of the selected files (answer from it; questions about a document become notes/cards next to it):\n${docs}`
       : ''

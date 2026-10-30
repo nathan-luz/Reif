@@ -59,7 +59,29 @@ Written in the Claude Skills format (frontmatter `name`/`description` plus the b
 
   With `branchColors`, each first-level branch gets one color, inherited by its descendants and its edges.
 
-## 4. Real evaluation
+## 4. Regeneration (adding to an existing diagram)
+
+Example: select "Biologia" in a mind map and ask "add the main contents of this subject".
+
+- **Board context** (`src/canvas/subgraph/structure.ts`). Every request now carries a read-only `context` built from the arrow graph:
+  - the diagram type and its central topic;
+  - the path from the root to the selected node;
+  - its siblings and existing children;
+  - the main texts on the board.
+
+  This is how the LLM knows that "this subject" means ENEM Biology. The `notes-to-diagram` skill (section 4) tells it to interpret the request within that context, to match the visual level of the new nodes, and not to duplicate existing children.
+- **Stable relayout** (`arrange.ts → extendDiagram`). When `layout.root` is a node of an existing mind map or tree, the engine:
+  - re-lays out the **whole diagram** with the new nodes, using the same algorithm;
+  - keeps the root fixed, each branch on its side and siblings in their current order;
+  - moves the neighbours to make room and pushes away anything outside the diagram that is in the way;
+  - colors the new nodes with the branch color.
+
+  The diagram type is read from the root's `meta` (recorded at creation) or inferred from geometry. One Cmd+Z undoes everything.
+- **Validated with real Claude output in the browser.** The ENEM mind map, with Biologia expanded, was graded:
+  - before: 3/10 (no context, overlaps, nothing moved);
+  - after: 8/10 and 8.5/10 on two consecutive runs, with 0 overlaps.
+
+## 5. Real evaluation
 
 The skills were evaluated with real Gemini and Claude output on 10 prompts: mind map, concept map, flowchart, timeline, comparison, Krebs cycle, chart, notes → diagram, expanding a node, and a generic request. The plans went through the same pipeline (sanitize → layout → render), and every diagram layout came out with 0 overlaps. Use this procedure for new skills:
 
