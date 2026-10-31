@@ -615,7 +615,12 @@ function sheet(ctx: Ctx, body: LNode[], rootId: string | undefined, cols?: numbe
     const x = colX(col)
     const top = heights[col]!
     let y = top + SHEET_PAD + SHEET_HEADER
-    for (const k of kidsOf(f.id)) {
+    const kids = kidsOf(f.id)
+    // O primeiro doodle da seção vai no canto do cabeçalho (como nos sketchnotes), sem ocupar linha.
+    const badge = kids.find((k) => k.kind === 'doodle')
+    if (badge) ctx.boxes.set(badge.id, { x: x + colW - SHEET_PAD - badge.w, y: top + 4, w: badge.w, h: badge.h })
+    for (const k of kids) {
+      if (k === badge) continue
       // Texto e cartões ocupam a largura útil; imagens e doodles ficam centrados.
       const full = k.kind === 'text' || k.kind === 'geo'
       const w = full ? inner : Math.min(k.w, inner)

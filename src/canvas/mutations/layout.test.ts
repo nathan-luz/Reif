@@ -195,6 +195,19 @@ describe('sheet (folha de estudo)', () => {
       }
     expect(b.get('foot')!.y).toBeGreaterThan(Math.max(...sections.map((s) => s.y + s.h)))
   })
+  it('doodle da seção vai no canto do cabeçalho, dentro do cartão, sem empurrar o conteúdo', () => {
+    const nodes: LNode[] = [
+      { id: 's', kind: 'frame', w: 10, h: 10 },
+      { id: 'd', kind: 'doodle', w: 64, h: 64, frame: 's' },
+      { id: 't', kind: 'text', w: 290, h: 40, frame: 's' },
+    ]
+    const b = computeLayout({ type: 'sheet', columns: 1, nodes, edges: [], gap: 56 }).boxes
+    const s = b.get('s')!, d = b.get('d')!, t = b.get('t')!
+    expect(d.x + d.w).toBeLessThanOrEqual(s.x + s.w)
+    expect(d.y).toBeGreaterThanOrEqual(s.y)
+    expect(d.y + d.h).toBeLessThanOrEqual(t.y)
+    expect(t.y).toBe(s.y + 18 + 54)
+  })
 })
 
 describe('labeled (ilustração rotulada)', () => {

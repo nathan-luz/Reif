@@ -26,7 +26,7 @@ This visual language comes from hand-made study posters: a cursive title, pastel
   - Bullets: one `text` (role `body`) per item, starting with "• ". Keep each to ≤ 14 words, and use 2–5 bullets per section.
   - Numbered steps: `text` items like "① Ingestão — …".
   - A key fact or definition: a `geo` with role `highlight` (≤ 18 words).
-  - A doodle: one `doodle` per section (64×64), placed before or after the bullets. Use one only when it adds a recognizable cue.
+  - A doodle: one `doodle` per section (64×64), with `"frame": "<section ref>"` like any other child, placed before or after the bullets. Use one only when it adds a recognizable cue. Doodles never go in the footer or float outside the sections.
   - A small illustration: an `image` with `generate`, at most one per section and 160–220 px, only where a picture explains better than words.
   - An equation or chain: a `text` like "Alimento + Enzimas → Nutrientes".
 - **Takeaway (footer).** Use 1–2 nodes outside any frame and not connected: a `geo` (role `accent`) with the closing message, e.g. "Coma bem · Digira bem · Viva bem", and optionally a `note` with a "Fun fact". The engine centers them under the sheet.
