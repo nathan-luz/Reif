@@ -13,7 +13,9 @@ export const GenerateRequestSchema = z.object({
   designSystem: z.string().max(40).optional(),
 })
 
-const NO_TEXT = 'absolutely no text, no letters, no words, no labels, no numbers, no watermark, no border, no frame'
+// FLUX não tem prompt negativo: cada objeto citado ("no notebook", "no frame") tende a APARECER.
+// Por isso o estilo descreve só o que se quer, e a única negação é a de texto (curta).
+const NO_TEXT = 'no text, no labels'
 
 export function buildImagePrompt(subject: string, designSystem?: string): string {
   const ds = getDesignSystem(designSystem)

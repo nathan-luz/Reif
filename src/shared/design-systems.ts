@@ -204,7 +204,7 @@ export const DESIGN_SYSTEMS: readonly DesignSystem[] = [
     pastel: 0.7,
     imageStyle: {
       prompt:
-        'hand-drawn colored pencil illustration, soft pastel colors, delicate clean ink outlines, textbook-style drawing, single subject isolated on a pure white background, no paper texture, no notebook, no spiral binding, no drop shadow, centered',
+        'colored pencil illustration, soft pastel colors, delicate ink outlines, textbook drawing, isolated subject centered on a plain white background',
       removeBackground: 'light',
     },
   },
