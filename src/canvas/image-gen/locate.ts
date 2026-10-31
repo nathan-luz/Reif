@@ -35,8 +35,79 @@ export async function pointLeaderLines(editor: Editor, imageId: TLShapeId, subje
     const p = byLabel.get(label.toLowerCase())
     return p ? [{ ...binding, props: { ...binding.props, normalizedAnchor: { x: p.x, y: p.y }, isPrecise: true, isExact: true } }] : []
   })
-  if (updates.length) editor.run(() => editor.updateBindings(updates), { history: 'ignore' })
+  if (!updates.length) return 0
+  editor.run(
+    () => {
+      editor.updateBindings(updates)
+      untangle(editor, image, ends.flatMap(({ binding, label }) => {
+        const p = byLabel.get(label.toLowerCase())
+        const other = editor.getBindingsFromShape<TLArrowBinding>(binding.fromId, 'arrow').find((o) => o.toId !== imageId)
+        return p && other ? [{ termId: other.toId, y: p.y }] : []
+      }))
+    },
+    { history: 'ignore' },
+  )
   return updates.length
+}
+
+/**
+ * Reordena os rótulos de cada lado pela altura da parte apontada: o rótulo de cima aponta
+ * para a parte mais alta e as linhas-guia não se cruzam. Cada bloco é o termo mais o que
+ * está colado logo abaixo dele (a descrição).
+ */
+function untangle(editor: Editor, image: TLImageShape, targets: { termId: TLShapeId; y: number }[]) {
+  const ib = editor.getShapePageBounds(image)
+  if (!ib) return
+  const all = editor.getCurrentPageShapes().filter((s) => s.parentId === editor.getCurrentPageId() && s.type !== 'arrow')
+  const blockOf = (termId: TLShapeId): TLShapeId[] => {
+    const ids = [termId]
+    let last = editor.getShapePageBounds(termId)
+    while (last) {
+      const below = all.find((s) => {
+        const b = editor.getShapePageBounds(s)
+        return b && !ids.includes(s.id) && b.y >= last!.maxY - 2 && b.y <= last!.maxY + 24 && b.minX < last!.maxX && b.maxX > last!.minX
+      })
+      if (!below) break
+      ids.push(below.id)
+      last = editor.getShapePageBounds(below)
+    }
+    return ids
+  }
+  for (const left of [true, false]) {
+    const side = targets.filter((t) => {
+      const b = editor.getShapePageBounds(t.termId)
+      return b && b.center.x < ib.center.x === left
+    })
+    if (side.length < 2) continue
+    const blocks = side.map((t) => {
+      const ids = blockOf(t.termId)
+      const bounds = ids.map((id) => editor.getShapePageBounds(id)!)
+      const top = Math.min(...bounds.map((b) => b.y))
+      return { ids, top, h: Math.max(...bounds.map((b) => b.maxY)) - top, targetY: t.y }
+    })
+    const tops = restack(blocks)
+    editor.updateShapes(
+      blocks.flatMap((b, i) => {
+        const dy = tops[i]! - b.top
+        return dy ? b.ids.map((id) => ({ id, type: editor.getShape(id)!.type, y: editor.getShape(id)!.y + dy })) : []
+      }),
+    )
+  }
+}
+
+/** Novas posições (topo) dos blocos: mesma faixa e espaçamento, ordenados pelo alvo. Exportada para teste. */
+export function restack(blocks: { top: number; h: number; targetY: number }[]): number[] {
+  const bySlot = [...blocks].sort((a, b) => a.top - b.top)
+  const span = bySlot.at(-1)!.top + bySlot.at(-1)!.h - bySlot[0]!.top
+  const gap = Math.max(0, (span - blocks.reduce((s, b) => s + b.h, 0)) / Math.max(1, blocks.length - 1))
+  const order = [...blocks].sort((a, b) => a.targetY - b.targetY)
+  const tops = new Map<(typeof blocks)[number], number>()
+  let y = bySlot[0]!.top
+  for (const b of order) {
+    tops.set(b, y)
+    y += b.h + gap
+  }
+  return blocks.map((b) => tops.get(b)!)
 }
 
 async function downscale(src: string, max: number): Promise<string> {
