@@ -91,6 +91,17 @@ The skills were evaluated with real Gemini and Claude output on 10 prompts: mind
 4. Render them with Playwright, mocking `/api/transform`.
 5. Look at the screenshots and count overlaps.
 
+## 6. Hand-drawn style ("Caderno à mão")
+
+- **Design system** `handwritten`: Patrick Hand (`hand`) and Caveat (`script`) fonts, pastel fills, dotted paper (chalkboard in dark mode).
+- **Layouts:** `sheet` (one-page study poster: hero in the middle column, numbered pastel section cards in masonry, takeaway centered below) and `labeled` (illustration in the center, labels on both sides with leader lines). Skill: `skills/study-sheet`.
+- **Doodles:** Lucide icons (`doodle` + `query`) turned into tldraw draw strokes. In a sheet, a section's first doodle goes in the header corner.
+- **AI images:** `image` + `generate` → `POST /api/images/generate` → Workers AI FLUX.1 schnell (free tier, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_AI_TOKEN` in `.dev.vars`). The style comes from the design system's `imageStyle`.
+  - FLUX has no negative prompt: naming an object ("no notebook", "no spiral binding") makes it appear. Style prompts describe only what is wanted; the only negation is "no text, no labels".
+  - Client post-processing: flood-fill background removal from the borders, then a crop to the visible pixels so the drawing fills its slot.
+- **Leader lines:** after the image is generated, `POST /api/images/locate` asks Gemini (vision) where each label's part is. Gemini answers in its native 0–1000 scale; the worker normalizes to 0–1. The labels on each side are then re-stacked by the height of their target, so the lines don't cross.
+- **Validated live** (Claude + real FLUX): digestive-system sheet with 6 sections, doodles and hero; kidney anatomy with 8 labels pointing at the parts.
+
 ## References
 
 - Excalidraw skills studied:
