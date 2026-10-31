@@ -15,12 +15,39 @@ export async function removeBackground(src: string, mode: 'light' | 'dark' | 'no
   canvas.height = h
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   ctx.drawImage(img, 0, 0)
+  let out = canvas
   if (mode !== 'none') {
     const data = ctx.getImageData(0, 0, w, h)
     keyOut(data.data, w, h, mode)
     ctx.putImageData(data, 0, 0)
+    // Recorta a margem transparente: o desenho ocupa o espaço reservado (e os pontos das
+    // linhas-guia passam a ser relativos ao desenho, não ao papel em volta).
+    const box = alphaBounds(data.data, w, h)
+    if (box && (box.w < w * 0.95 || box.h < h * 0.95)) {
+      out = document.createElement('canvas')
+      out.width = box.w
+      out.height = box.h
+      out.getContext('2d')!.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h)
+    }
   }
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/png'))
+  return new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/png'))
+}
+
+/** Caixa (com folga de 2%) dos pixels visíveis; null se a imagem ficou toda transparente. */
+export function alphaBounds(px: Uint8ClampedArray, w: number, h: number) {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (px[(y * w + x) * 4 + 3]! > 24) {
+        if (x < x0) x0 = x
+        if (x > x1) x1 = x
+        if (y < y0) y0 = y
+        if (y > y1) y1 = y
+      }
+  if (x1 < 0) return null
+  const pad = Math.round(Math.max(w, h) * 0.02)
+  const x = Math.max(0, x0 - pad), y = Math.max(0, y0 - pad)
+  return { x, y, w: Math.min(w, x1 + pad + 1) - x, h: Math.min(h, y1 + pad + 1) - y }
 }
 
 /** Exportada para teste: zera o alfa do fundo (in-place). */

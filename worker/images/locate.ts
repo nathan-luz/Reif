@@ -24,11 +24,11 @@ const SCHEMA = {
         type: 'object',
         properties: {
           label: { type: 'string' },
-          x: { type: 'number', description: '0 = left edge, 1 = right edge of the image' },
-          y: { type: 'number', description: '0 = top edge, 1 = bottom edge of the image' },
+          y: { type: 'number', description: 'vertical position, 0 = top edge, 1000 = bottom edge' },
+          x: { type: 'number', description: 'horizontal position, 0 = left edge, 1000 = right edge' },
           found: { type: 'boolean', description: 'false if the part is not visible in the image' },
         },
-        required: ['label', 'x', 'y', 'found'],
+        required: ['label', 'y', 'x', 'found'],
       },
     },
   },
@@ -40,7 +40,7 @@ export async function locateParts(apiKey: string | undefined, model: string, req
   const [, mime = 'image/jpeg', data = ''] = /^data:([^;]+);base64,(.*)$/.exec(req.image) ?? []
   const prompt =
     `The image is an educational illustration${req.subject ? ` of: ${req.subject}` : ''}. ` +
-    `For each label below, give the point (normalized 0..1) INSIDE the image where a leader line should touch that part. ` +
+    `For each label below, give the point INSIDE the image (y and x normalized to 0-1000) where a leader line should touch that part. ` +
     `Pick the visual center of the part. If a part is not visible, set found=false and point to the closest region.\nLabels:\n` +
     req.labels.map((l) => `- ${l}`).join('\n')
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -56,6 +56,15 @@ export async function locateParts(apiKey: string | undefined, model: string, req
   const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
   const parsed = ResultSchema.safeParse(JSON.parse(text || '{}'))
   if (!parsed.success) return { error: 'resposta inválida', status: 502 as const }
-  const clamp = (n: number) => Math.min(0.98, Math.max(0.02, n))
-  return { points: parsed.data.points.map((p) => ({ ...p, x: clamp(p.x), y: clamp(p.y) })) }
+  return { points: parsed.data.points.map((p) => ({ ...p, ...normalizePoint(p, parsed.data.points) })) }
+}
+
+/**
+ * O Gemini aponta em 0–1000 (seu formato nativo); por segurança aceita 0–1 também, decidindo
+ * pela escala do conjunto (um ponto 0–1000 perto da borda não pode virar 0–1 sozinho).
+ */
+export function normalizePoint(p: { x: number; y: number }, all: { x: number; y: number }[]) {
+  const scale = all.some((q) => q.x > 1.5 || q.y > 1.5) ? 1000 : 1
+  const clamp = (n: number) => Math.min(0.98, Math.max(0.02, n / scale))
+  return { x: clamp(p.x), y: clamp(p.y) }
 }

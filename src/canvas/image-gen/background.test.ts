@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { keyOut } from './background'
+import { alphaBounds, keyOut } from './background'
 
 /** Imagem 20×20: fundo quase branco, quadrado escuro no meio e um "furo" branco dentro dele. */
 function sample() {
@@ -31,5 +31,17 @@ describe('keyOut (remoção de fundo)', () => {
     for (let i = 0; i < px.length; i += 4) px.set([30, 30, 30], i)
     keyOut(px, w, w, 'light')
     expect(px[3]).toBe(255)
+  })
+})
+
+describe('alphaBounds', () => {
+  it('recorta a margem transparente com folga de 2%', () => {
+    const w = 100, h = 100
+    const px = new Uint8ClampedArray(w * h * 4)
+    for (let y = 30; y < 60; y++) for (let x = 40; x < 50; x++) px[(y * w + x) * 4 + 3] = 255
+    expect(alphaBounds(px, w, h)).toEqual({ x: 38, y: 28, w: 14, h: 34 })
+  })
+  it('imagem toda transparente → null', () => {
+    expect(alphaBounds(new Uint8ClampedArray(16), 2, 2)).toBeNull()
   })
 })
